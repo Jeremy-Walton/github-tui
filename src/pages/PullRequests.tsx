@@ -1,10 +1,12 @@
 import {Text} from 'ink';
 import type {PullRequest} from '../github.js';
 import {Cell, Line, ListView, Title} from '../ListView.js';
+import {Muted, useTheme} from '../theme.js';
 import {openUrl, type Resource, timeAgo} from '../util.js';
 import type {PageProps} from './types.js';
 
 export function PullRequestsPage({resource, ...props}: PageProps & {resource: Resource<PullRequest[]>}) {
+	const t = useTheme();
 	return (
 		<ListView
 			{...props}
@@ -17,22 +19,22 @@ export function PullRequestsPage({resource, ...props}: PageProps & {resource: Re
 			renderItem={(pr, selected) => (
 				<>
 					<Line selected={selected}>
-						<Cell w={2}>{pr.isDraft ? <Text color="gray">◌</Text> : <Text color="green">●</Text>}</Cell>
+						<Cell w={2}>{pr.isDraft ? <Text color={t.neutral}>◌</Text> : <Text color={t.success}>●</Text>}</Cell>
 						<Cell grow>
 							<Title selected={selected}>{pr.title}</Title>
-							<Text dimColor> #{pr.number}</Text>
+							<Muted> #{pr.number}</Muted>
 						</Cell>
 					</Line>
 					<Line selected={selected}>
 						<Cell w={2} />
 						<Cell w={32}>
-							<Text color="blue">{pr.repo}</Text>
+							<Text color={t.link}>{pr.repo}</Text>
 						</Cell>
 						<Cell w={16}>
-							<Text dimColor>{pr.author}</Text>
+							<Muted>{pr.author}</Muted>
 						</Cell>
 						<Cell w={10}>
-							<Text dimColor>{timeAgo(pr.updatedAt)}</Text>
+							<Muted>{timeAgo(pr.updatedAt)}</Muted>
 						</Cell>
 						<Cell w={15}>
 							<Status pr={pr} />
@@ -40,19 +42,19 @@ export function PullRequestsPage({resource, ...props}: PageProps & {resource: Re
 						<Cell w={10}>
 							<Checks state={pr.checks} />
 						</Cell>
-						<Cell w={12}>{pr.mergeable === 'CONFLICTING' ? <Text color="red">⚠ conflicts</Text> : null}</Cell>
+						<Cell w={12}>{pr.mergeable === 'CONFLICTING' ? <Text color={t.danger}>⚠ conflicts</Text> : null}</Cell>
 						<Cell w={14}>
-							<Text color="green">+{pr.additions}</Text>
-							<Text color="red"> −{pr.deletions}</Text>
+							<Text color={t.success}>+{pr.additions}</Text>
+							<Text color={t.danger}> −{pr.deletions}</Text>
 						</Cell>
 						<Cell w={13}>
 							{pr.comments ? (
-								<Text dimColor>
+								<Muted>
 									{pr.comments} comment{pr.comments === 1 ? '' : 's'}
-								</Text>
+								</Muted>
 							) : null}
 						</Cell>
-						<Cell grow>{pr.labels.length ? <Text color="yellow">{pr.labels.join(', ')}</Text> : null}</Cell>
+						<Cell grow>{pr.labels.length ? <Text color={t.warning}>{pr.labels.join(', ')}</Text> : null}</Cell>
 					</Line>
 				</>
 			)}
@@ -63,17 +65,19 @@ export function PullRequestsPage({resource, ...props}: PageProps & {resource: Re
 const bySection = (pr: PullRequest) => pr.section;
 
 function Status({pr}: {pr: PullRequest}) {
-	if (pr.isDraft) return <Text color="gray">◌ draft</Text>;
-	if (pr.reviewDecision === 'APPROVED') return <Text color="green">✓ approved</Text>;
-	if (pr.reviewDecision === 'CHANGES_REQUESTED') return <Text color="red">± changes</Text>;
-	if (pr.reviewDecision === 'REVIEW_REQUIRED') return <Text color="yellow">○ needs review</Text>;
+	const t = useTheme();
+	if (pr.isDraft) return <Text color={t.neutral}>◌ draft</Text>;
+	if (pr.reviewDecision === 'APPROVED') return <Text color={t.success}>✓ approved</Text>;
+	if (pr.reviewDecision === 'CHANGES_REQUESTED') return <Text color={t.danger}>± changes</Text>;
+	if (pr.reviewDecision === 'REVIEW_REQUIRED') return <Text color={t.warning}>○ needs review</Text>;
 	return null;
 }
 
 function Checks({state}: {state: PullRequest['checks']}) {
-	if (state === 'SUCCESS') return <Text color="green">✓ checks</Text>;
-	if (state === 'FAILURE' || state === 'ERROR') return <Text color="red">✗ checks</Text>;
-	if (state === 'PENDING' || state === 'EXPECTED') return <Text color="yellow">● checks</Text>;
+	const t = useTheme();
+	if (state === 'SUCCESS') return <Text color={t.success}>✓ checks</Text>;
+	if (state === 'FAILURE' || state === 'ERROR') return <Text color={t.danger}>✗ checks</Text>;
+	if (state === 'PENDING' || state === 'EXPECTED') return <Text color={t.warning}>● checks</Text>;
 	return null;
 }
 

@@ -28,7 +28,7 @@ describe('App (demo data)', () => {
 	it('opens on pull requests, grouped by section', () => {
 		const frame = app.frame();
 		expect(frame).toContain('@alex-dev');
-		expect(frame).toContain('› Pull Requests 11');
+		expect(frame).toMatch(/› Pull Requests +11 /);
 		expect(frame).toContain('Assigned to you (2)');
 		expect(frame).toContain('Add Apple Pay to checkout');
 		expect(frame).toContain('± changes');
@@ -40,11 +40,11 @@ describe('App (demo data)', () => {
 
 	it('switches pages with number keys', async () => {
 		await app.press('2');
-		expect(app.frame()).toContain('› Repositories 15');
+		expect(app.frame()).toMatch(/› Repositories +15 /);
 		expect(app.frame()).toContain('acme/sdk-js');
 
 		await app.press('3');
-		expect(app.frame()).toContain('› Inbox 6');
+		expect(app.frame()).toMatch(/› Inbox +6 /);
 		expect(app.frame()).toContain('merged PR');
 	});
 
@@ -85,6 +85,26 @@ describe('App (demo data)', () => {
 		await app.press('3', 't');
 		await actions.flush();
 		expect(unsubscribe).toHaveBeenCalledWith('demo-0');
+	});
+
+	it('shows who is signed in and the themes on the settings page', async () => {
+		await app.press('4');
+		const frame = app.frame();
+		expect(frame).toContain('› Settings');
+		expect(frame).toContain('Signed in as');
+		expect(frame).toContain('demo data');
+		expect(frame).toContain('Cobalt2');
+		expect(frame.split('\n').length).toBeLessThanOrEqual(ROWS);
+	});
+
+	it('switches theme with enter', async () => {
+		await app.press('4', 'j', 'j', '\r');
+		expect(app.frame()).toContain('Theme: Cobalt2');
+		expect(app.frame()).toMatch(/▌✓ Cobalt2 +current/);
+
+		// Back to a theme without a background keeps the cursor in place.
+		await app.press('k', '\r');
+		expect(app.frame()).toMatch(/▌✓ Terminal +current/);
 	});
 
 	it('moves focus to the sidebar and switches pages with arrows', async () => {

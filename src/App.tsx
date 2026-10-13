@@ -1,15 +1,22 @@
 import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
-import {type ReactNode, useEffect, useState} from 'react';
+import {Fragment, type ReactNode, useEffect, useState} from 'react';
 import type {ActionQueue} from './actions.js';
 import type {GitHubClient, Viewer} from './github.js';
 import {INBOX_HINTS, InboxPage} from './pages/Inbox.js';
 import {PullRequestsPage} from './pages/PullRequests.js';
 import {ReposPage} from './pages/Repos.js';
+import {SETTINGS_HINTS, SettingsPage} from './pages/Settings.js';
 import type {PageProps} from './pages/types.js';
+import {readSettings, type Settings, writeSettings} from './settings.js';
+import {borderProps, findTheme, Muted, type Theme, ThemeProvider} from './theme.js';
 import {type Resource, useResource} from './util.js';
 
 const SIDEBAR_WIDTH = 24;
 const NO_SEARCH: Search = {query: '', searching: false};
+// Ink only adds its background context when a Box has a color, so going between a theme with a
+// background and one without would change the tree and remount every page, losing its selection.
+// Ink ignores color names it doesn't know, so this keeps the shape fixed and paints nothing.
+const TERMINAL_BACKGROUND = 'terminal';
 
 type Focus = 'sidebar' | 'main';
 type Search = {query: string; searching: boolean};
@@ -18,16 +25,26 @@ type Page = {
 	resource: Pick<Resource<unknown>, 'loading' | 'refresh'>;
 	count: number | undefined;
 	hints?: string;
+	atBottom?: boolean;
 	render: (props: PageProps) => ReactNode;
 };
 
-export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; actions: ActionQueue}) {
+type Props = {gh: GitHubClient; viewer: Viewer; actions: ActionQueue; settings?: Settings};
+
+export function App({gh, viewer, actions, settings: initialSettings = {theme: 'default'}}: Props) {
 	const {exit} = useApp();
 	const {columns, rows} = useWindowSize();
 	const [page, setPage] = useState(0);
 	const [focus, setFocus] = useState<Focus>('main');
 	const [searches, setSearches] = useState<Record<number, Search>>({});
 	const [message, setMessage] = useState('');
+	const [settings, setSettings] = useState(initialSettings);
+	const theme = findTheme(settings.theme);
+
+	const saveSettings = (next: Settings) => {
+		setSettings(next);
+		writeSettings(next).catch((e: Error) => setMessage(`Couldn't save settings: ${e.message}`));
+	};
 
 	const prs = useResource(`${viewer.login}-prs`, () => gh.pullRequests());
 	// Pull requests are the landing page, so the other pages wait for its first fetch to finish.
@@ -57,6 +74,14 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 			count: inbox.data?.filter(n => n.unread).length,
 			hints: INBOX_HINTS,
 			render: p => <InboxPage resource={inbox} gh={gh} actions={actions} {...p} />,
+		},
+		{
+			name: 'Settings',
+			resource: {loading: false, refresh: () => void readSettings().then(setSettings)},
+			count: undefined,
+			hints: SETTINGS_HINTS,
+			atBottom: true,
+			render: p => <SettingsPage viewer={viewer} settings={settings} onChange={saveSettings} {...p} />,
 		},
 	];
 	const current = pages[page] ?? pages[0];
@@ -116,54 +141,89 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 	};
 
 	return (
-		<Box flexDirection="column" width={columns} height={rows}>
-			<Box paddingX={1}>
-				<Text bold color="cyan">
-					GitHub
-				</Text>
-				<Text dimColor> · </Text>
-				<Text bold>@{viewer.login}</Text>
-				{viewer.name ? <Text dimColor> ({viewer.name})</Text> : null}
-				<Box flexGrow={1} />
-				{pages.some(p => p.resource.loading) ? <Text dimColor>syncing…</Text> : null}
-			</Box>
-			<Box height={bodyHeight}>
-				<Box
-					flexDirection="column"
-					width={SIDEBAR_WIDTH}
-					flexShrink={0}
-					borderStyle="round"
-					borderColor={focus === 'sidebar' ? 'cyan' : 'gray'}
-					paddingX={1}
-				>
-					{pages.map(({name, count}, i) => (
-						<Text
-							key={name}
-							wrap="truncate-end"
-							inverse={i === page && focus === 'sidebar'}
-							color={i === page ? 'cyan' : undefined}
-						>
-							{i === page ? '› ' : '  '}
-							{name}
-							{count !== undefined ? <Text dimColor> {count}</Text> : null}
+		<ThemeProvider value={theme}>
+			<Box
+				flexDirection="column"
+				width={columns}
+				height={rows}
+				backgroundColor={theme.background ?? TERMINAL_BACKGROUND}
+			>
+				<Box paddingX={1}>
+					<Text bold color={theme.accent}>
+						GitHub
+					</Text>
+					<Muted> · </Muted>
+					<Text bold color={theme.text}>
+						@{viewer.login}
+					</Text>
+					{viewer.name ? <Muted> ({viewer.name})</Muted> : null}
+					<Box flexGrow={1} />
+					{pages.some(p => p.resource.loading) ? <Muted>syncing…</Muted> : null}
+				</Box>
+				<Box height={bodyHeight}>
+					<Box
+						flexDirection="column"
+						width={SIDEBAR_WIDTH}
+						flexShrink={0}
+						borderStyle="round"
+						{...borderProps(theme, focus === 'sidebar')}
+					>
+						{pages.map((p, i) => (
+							<Fragment key={p.name}>
+								{p.atBottom ? <Box flexGrow={1} /> : null}
+								<SidebarItem
+									page={p}
+									current={i === page}
+									highlighted={i === page && focus === 'sidebar'}
+									theme={theme}
+								/>
+							</Fragment>
+						))}
+					</Box>
+					<Box flexDirection="column" flexGrow={1} borderStyle="round" {...borderProps(theme, focus === 'main')}>
+						{current.render(pageProps)}
+					</Box>
+				</Box>
+				<Box paddingX={1}>
+					{message ? (
+						<Text color={theme.warning} wrap="truncate-end">
+							{message}
 						</Text>
-					))}
-				</Box>
-				<Box flexDirection="column" flexGrow={1} borderStyle="round" borderColor={focus === 'main' ? 'cyan' : 'gray'}>
-					{current.render(pageProps)}
+					) : (
+						<Muted wrap="truncate-end">{hints(current, pages.length, focus, search.searching)}</Muted>
+					)}
 				</Box>
 			</Box>
-			<Box paddingX={1}>
-				{message ? (
-					<Text color="yellow" wrap="truncate-end">
-						{message}
-					</Text>
-				) : (
-					<Text dimColor wrap="truncate-end">
-						{hints(current, pages.length, focus, search.searching)}
-					</Text>
-				)}
-			</Box>
+		</ThemeProvider>
+	);
+}
+
+// The highlight spans the sidebar's full width, with the count pushed to the right edge
+// so the padding on both ends matches.
+function SidebarItem({
+	page,
+	current,
+	highlighted,
+	theme,
+}: {
+	page: Page;
+	current: boolean;
+	highlighted: boolean;
+	theme: Theme;
+}) {
+	const color = highlighted ? (theme.background ?? 'black') : current ? theme.accent : theme.text;
+	return (
+		<Box paddingX={1} backgroundColor={highlighted ? theme.accent : undefined}>
+			<Text wrap="truncate-end" color={color}>
+				{current ? '› ' : '  '}
+				{page.name}
+			</Text>
+			<Box flexGrow={1} />
+			{page.count === undefined ? null : (
+				<Box flexShrink={0} paddingLeft={1}>
+					{highlighted ? <Text color={color}>{page.count}</Text> : <Muted>{page.count}</Muted>}
+				</Box>
+			)}
 		</Box>
 	);
 }

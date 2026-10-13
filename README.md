@@ -2,7 +2,7 @@
 
 A terminal UI for your GitHub pull requests, repos, and notifications. Run `github`.
 
-There is nothing to configure. The app uses your `gh` login and never stores a token: it asks `gh auth token` each time it starts. Data is cached in `~/.cache/github-tui` so the app opens instantly, then refreshes.
+The app uses your `gh` login and never stores a token: it asks `gh auth token` each time it starts. Data is cached in `~/.cache/github-tui` so the app opens instantly, then refreshes.
 
 **Pull requests** you're assigned, asked to review, or wrote, then open PRs in repos you watch. Status, checks, conflicts, and size line up in columns.
 
@@ -15,6 +15,8 @@ There is nothing to configure. The app uses your `gh` login and never stores a t
 **Repositories** you can access, sorted by your own recent activity. Press `/` to search on any page.
 
 ![Repositories page with a search](docs/screenshots/repositories.png)
+
+**Settings** shows who you're signed in as and lets you pick a color theme: Terminal (your terminal's own colors), Cobalt2, Dracula, Nord, Solarized Dark, Gruvbox Dark, Tokyo Night, or GitHub Light. Your choice is saved to `~/.config/github-tui/settings.json` (or `$XDG_CONFIG_HOME/github-tui`). Themes look best in a terminal with 24-bit color.
 
 > Screenshots use made-up data. Run `github --demo` to try the UI without touching your account.
 
@@ -81,7 +83,7 @@ bin/install
 
 ```bash
 rm ~/.local/bin/github
-rm -r ~/.cache/github-tui
+rm -r ~/.cache/github-tui ~/.config/github-tui
 ```
 
 Then delete the cloned `github-tui` folder.
@@ -101,10 +103,10 @@ Then delete the cloned `github-tui` folder.
 | Key | Action |
 | --- | --- |
 | `↑` `↓` / `j` `k` | Move |
-| `enter` | Open in browser |
+| `enter` | Open in browser (Settings: use the selected theme) |
 | `/` | Focus search (`esc` to leave, `esc` again to clear) |
 | `←` / `h`, `tab` | Focus sidebar |
-| `1` `2` `3` | Jump to Pull Requests, Repositories, Inbox |
+| `1` `2` `3` `4` | Jump to Pull Requests, Repositories, Inbox, Settings |
 | `r` | Refresh current page |
 | `e` | Inbox: mark done |
 | `t` | Inbox: unsubscribe (also marks done) |
@@ -118,7 +120,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev -- --demo` runs on made-up data from `src/demo.ts`. Demo mode makes no GitHub calls, doesn't open links, and doesn't read or write the cache.
+`npm run dev -- --demo` runs on made-up data from `src/demo.ts`. Demo mode makes no GitHub calls, doesn't open links, and doesn't read or write the cache or settings.
 
 | Command | What it does |
 | --- | --- |

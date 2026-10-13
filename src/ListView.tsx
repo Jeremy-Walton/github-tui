@@ -1,5 +1,6 @@
 import {Box, Text, useInput} from 'ink';
 import {type ReactNode, useMemo, useRef, useState} from 'react';
+import {borderProps, Muted, useTheme} from './theme.js';
 import {matches, type Resource} from './util.js';
 
 type Props<T> = {
@@ -9,6 +10,7 @@ type Props<T> = {
 	getKey: (item: T) => string;
 	getSearchText: (item: T) => string;
 	getGroup?: (item: T) => string;
+	hideGroupCounts?: boolean;
 	renderItem: (item: T, selected: boolean) => ReactNode;
 	height: number;
 	query: string;
@@ -23,7 +25,6 @@ type Row<T> = {kind: 'header'; label: string; count: number; spaced: boolean} | 
 
 const SEARCH_BOX_HEIGHT = 3;
 const ITEM_HEIGHT = 2;
-const SELECTED_BG = '#2b3d5a';
 
 export function ListView<T>(props: Props<T>) {
 	const {resource, getSearchText, getGroup, height, query, searching, active} = props;
@@ -31,6 +32,7 @@ export function ListView<T>(props: Props<T>) {
 	const [selected, setSelected] = useState(0);
 	const [selectedQuery, setSelectedQuery] = useState(query);
 	const scrollTop = useRef(0);
+	const t = useTheme();
 
 	// A new query starts at the top. Adjusting during render avoids a second render per keystroke.
 	if (query !== selectedQuery) {
@@ -109,44 +111,43 @@ export function ListView<T>(props: Props<T>) {
 
 	return (
 		<Box flexDirection="column" height={height}>
-			<Box borderStyle="round" borderColor={searching ? 'cyan' : 'gray'} paddingX={1} height={SEARCH_BOX_HEIGHT}>
+			<Box borderStyle="round" {...borderProps(t, searching)} paddingX={1} height={SEARCH_BOX_HEIGHT}>
 				{searching ? (
-					<Text>
-						<Text color="cyan">/ </Text>
+					<Text color={t.text}>
+						<Text color={t.accent}>/ </Text>
 						{query}
 						<Text inverse> </Text>
 					</Text>
 				) : query ? (
-					<Text>
-						<Text dimColor>/ </Text>
+					<Text color={t.text}>
+						<Muted>/ </Muted>
 						{query}
-						<Text dimColor> (esc to clear)</Text>
+						<Muted> (esc to clear)</Muted>
 					</Text>
 				) : (
-					<Text dimColor>/ Search…</Text>
+					<Muted>/ Search…</Muted>
 				)}
 				<Box flexGrow={1} />
-				<Text dimColor>
+				<Muted>
 					{resource.loading ? 'loading… ' : ''}
 					{filtered.length === items.length ? items.length : `${filtered.length}/${items.length}`}
-				</Text>
+				</Muted>
 			</Box>
 			{resource.error ? (
-				<Text color="red" wrap="truncate-end">
+				<Text color={t.danger} wrap="truncate-end">
 					{resource.error}
 				</Text>
 			) : null}
 			<Box flexDirection="column" paddingX={1} flexGrow={1}>
 				{filtered.length === 0 ? (
-					<Text dimColor>
-						{resource.loading && items.length === 0 ? 'Loading…' : query ? 'No matches.' : props.emptyText}
-					</Text>
+					<Muted>{resource.loading && items.length === 0 ? 'Loading…' : query ? 'No matches.' : props.emptyText}</Muted>
 				) : (
 					visible.map(row =>
 						row.kind === 'header' ? (
 							<Box key={`h:${row.label}`} marginTop={row.spaced ? 1 : 0} marginBottom={1}>
-								<Text bold color="magenta" wrap="truncate-end">
-									{row.label} <Text dimColor>({row.count})</Text>
+								<Text bold color={t.group} wrap="truncate-end">
+									{row.label}
+									{props.hideGroupCounts ? null : <Muted> ({row.count})</Muted>}
 								</Text>
 							</Box>
 						) : (
@@ -154,7 +155,7 @@ export function ListView<T>(props: Props<T>) {
 								<Box
 									flexDirection="column"
 									height={ITEM_HEIGHT}
-									backgroundColor={row.index === sel ? SELECTED_BG : undefined}
+									backgroundColor={row.index === sel ? t.selection : undefined}
 								>
 									{props.renderItem(row.item, row.index === sel)}
 								</Box>
@@ -163,8 +164,10 @@ export function ListView<T>(props: Props<T>) {
 									borderTop={false}
 									borderLeft={false}
 									borderRight={false}
-									borderColor="gray"
-									borderDimColor
+									borderColor={t.divider}
+									borderBackgroundColor={t.background}
+									// The terminal's own background has no known shade to pick against, so dim instead.
+									borderDimColor={!t.background}
 								/>
 							</Box>
 						),
@@ -172,10 +175,10 @@ export function ListView<T>(props: Props<T>) {
 				)}
 			</Box>
 			{totalHeight > listHeight ? (
-				<Text dimColor>
+				<Muted>
 					{' '}
 					{sel + 1} of {filtered.length}
-				</Text>
+				</Muted>
 			) : (
 				<Text> </Text>
 			)}
@@ -184,10 +187,11 @@ export function ListView<T>(props: Props<T>) {
 }
 
 export function Line({selected, children}: {selected: boolean; children: ReactNode}) {
+	const t = useTheme();
 	return (
 		<Box height={1} overflow="hidden">
 			<Box width={1} flexShrink={0}>
-				<Text color="cyan">{selected ? '▌' : ' '}</Text>
+				<Text color={t.accent}>{selected ? '▌' : ' '}</Text>
 			</Box>
 			{children}
 		</Box>
@@ -196,6 +200,7 @@ export function Line({selected, children}: {selected: boolean; children: ReactNo
 
 // A fixed-width column so values line up across rows. `grow` takes the leftover space.
 export function Cell({w, grow, children}: {w?: number; grow?: boolean; children?: ReactNode}) {
+	const t = useTheme();
 	return (
 		<Box
 			width={grow ? undefined : w}
@@ -205,15 +210,23 @@ export function Cell({w, grow, children}: {w?: number; grow?: boolean; children?
 			minWidth={0}
 			paddingRight={1}
 		>
-			<Text wrap="truncate-end">{children}</Text>
+			<Text wrap="truncate-end" color={t.text}>
+				{children}
+			</Text>
 		</Box>
 	);
 }
 
 // An item's main text: bold when selected or unread, dimmed once read.
 export function Title({selected, unread, children}: {selected: boolean; unread?: boolean; children: ReactNode}) {
+	const t = useTheme();
+	const read = unread === false && !selected;
 	return (
-		<Text bold={selected || unread} color={selected ? 'cyan' : undefined} dimColor={unread === false && !selected}>
+		<Text
+			bold={selected || unread}
+			color={selected ? t.accent : read && t.muted ? t.muted : t.text}
+			dimColor={read && !t.muted}
+		>
 			{children}
 		</Text>
 	);

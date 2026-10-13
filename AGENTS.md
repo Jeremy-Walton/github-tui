@@ -1,6 +1,6 @@
 # AGENTS.md
 
-A terminal UI for GitHub: pull requests, repositories, and the notifications inbox. Run `github`. TypeScript + [Ink](https://github.com/vadimdemedes/ink) (React for terminals), Node 22+.
+A terminal UI for GitHub: pull requests, repositories, the notifications inbox, and settings. Run `github`. TypeScript + [Ink](https://github.com/vadimdemedes/ink) (React for terminals), Node 22+.
 
 Install, keys, and the dev commands are in @README.md. Read it first.
 
@@ -17,11 +17,13 @@ Install, keys, and the dev commands are in @README.md. Read it first.
 - `src/ListView.tsx`: the shared list. It has the search box, grouping, scrolling, and selection, plus the `Line`, `Cell`, and `Title` row helpers.
 - `src/pages/*`: one file per page. A page renders rows and handles its own keys.
 - `src/actions.ts`: the delayed-send undo queue for inbox actions.
+- `src/theme.tsx`: the color themes and `useTheme`. Components take colors from the theme, not color names.
+- `src/settings.ts`: reads and writes the settings file.
 - `src/util.ts`: the cached data hook (`useResource`), the time and search helpers, and the `runtime.demo` flag.
 
 ## Product decisions (keep these unless the user changes them)
 
-- **Auth:** always the `gh` keychain login (`gh auth token --hostname github.com`). `GITHUB_TOKEN` and `GH_TOKEN` are removed from the environment on purpose. There is no config, and secrets never go in the code; anyone with `gh` logged in can use the app.
+- **Auth:** always the `gh` keychain login (`gh auth token --hostname github.com`). `GITHUB_TOKEN` and `GH_TOKEN` are removed from the environment on purpose. Secrets never go in the code or the settings file; anyone with `gh` logged in can use the app.
 - **Launch:** `bin/github` is linked into `~/.local/bin`. It runs on the global nodenv version when nodenv exists, because a project's `.node-version` once hid the command.
 - **Startup:** Pull Requests is the first page and loads first. Repos and Inbox wait for the first PR fetch. Cached data in `~/.cache/github-tui` shows right away on every page.
 - **Pull Requests:** sections in this order: Assigned to you, Review requested, Your pull requests, then one group per watched repo (newest PR first). Each PR shows once. Dependabot PRs are hidden.
@@ -29,7 +31,8 @@ Install, keys, and the dev commands are in @README.md. Read it first.
 - **Inbox:** mirrors github.com notifications (`all=true`). It shows each PR or issue's open, merged, closed, or draft state through a separate GraphQL lookup. Keys: `e` done, `t` unsubscribe (also marks done), `u` undo, Enter opens the item and marks it read.
 - **Undo:** GitHub can't un-mark a notification as done, so actions wait 15 seconds in `ActionQueue` before they're sent. Pending actions are sent on quit, SIGHUP, and SIGTERM.
 - **Keys:** the search box is focused only with `/`. This leaves letters free for shortcuts. `q` quits from any page.
-- **Look:** details line up in fixed-width `Cell` columns. Items have divider lines, the selected item has a `#2b3d5a` background, and a group header is hidden until its first item fits on screen.
+- **Look:** details line up in fixed-width `Cell` columns. Items have divider lines, the selected item has a background (`#2b3d5a` in the Terminal theme), and a group header is hidden until its first item fits on screen.
+- **Settings:** a sidebar page that shows the signed-in user and the theme list. The choice is saved to `~/.config/github-tui/settings.json`. Every theme keeps the same layout; only colors change. The Terminal theme uses the terminal's own background and text colors.
 
 ## Gotchas
 

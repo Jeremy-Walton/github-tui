@@ -1,10 +1,12 @@
 import {Text} from 'ink';
 import type {Repo} from '../github.js';
 import {Cell, Line, ListView, Title} from '../ListView.js';
+import {Muted, useTheme} from '../theme.js';
 import {openUrl, type Resource, timeAgo} from '../util.js';
 import type {PageProps} from './types.js';
 
 export function ReposPage({resource, ...props}: PageProps & {resource: Resource<Repo[]>}) {
+	const t = useTheme();
 	return (
 		<ListView
 			{...props}
@@ -21,29 +23,29 @@ export function ReposPage({resource, ...props}: PageProps & {resource: Resource<
 						</Cell>
 						<Cell w={10}>
 							{r.isArchived ? (
-								<Text color="gray">archived</Text>
+								<Text color={t.neutral}>archived</Text>
 							) : r.isPrivate ? (
-								<Text color="yellow">private</Text>
+								<Text color={t.warning}>private</Text>
 							) : (
-								<Text dimColor>public</Text>
+								<Muted>public</Muted>
 							)}
 						</Cell>
-						<Cell w={6}>{r.isFork ? <Text dimColor>fork</Text> : null}</Cell>
+						<Cell w={6}>{r.isFork ? <Muted>fork</Muted> : null}</Cell>
 						<Cell w={13}>
-							<Text dimColor>{r.language ?? ''}</Text>
+							<Muted>{r.language ?? ''}</Muted>
 						</Cell>
-						<Cell w={8}>{r.stars ? <Text dimColor>★ {r.stars}</Text> : null}</Cell>
+						<Cell w={8}>{r.stars ? <Muted>★ {r.stars}</Muted> : null}</Cell>
 						<Cell w={18}>
 							{r.myLastActivity ? (
-								<Text color="green">you {timeAgo(r.myLastActivity)}</Text>
+								<Text color={t.success}>you {timeAgo(r.myLastActivity)}</Text>
 							) : (
-								<Text dimColor>pushed {timeAgo(r.pushedAt)}</Text>
+								<Muted>pushed {timeAgo(r.pushedAt)}</Muted>
 							)}
 						</Cell>
 					</Line>
 					<Line selected={selected}>
 						<Cell grow>
-							<Text dimColor>{r.description ?? ''}</Text>
+							<Muted>{r.description ?? ''}</Muted>
 						</Cell>
 					</Line>
 				</>

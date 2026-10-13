@@ -3,6 +3,7 @@ import {useMemo, useSyncExternalStore} from 'react';
 import type {ActionQueue} from '../actions.js';
 import type {GitHubClient, Notification} from '../github.js';
 import {Cell, Line, ListView, Title} from '../ListView.js';
+import {Muted, useTheme} from '../theme.js';
 import {openUrl, type Resource, timeAgo} from '../util.js';
 import type {PageProps} from './types.js';
 
@@ -11,6 +12,7 @@ export const INBOX_HINTS = 'e done · t unsubscribe · u undo';
 type Props = PageProps & {resource: Resource<Notification[]>; gh: GitHubClient; actions: ActionQueue};
 
 export function InboxPage({resource, gh, actions, ...props}: Props) {
+	const t = useTheme();
 	const pending = useSyncExternalStore(actions.subscribe, actions.pendingIds);
 	const items = useMemo(() => resource.data?.filter(n => !pending.has(n.id)) ?? [], [resource.data, pending]);
 
@@ -50,15 +52,15 @@ export function InboxPage({resource, gh, actions, ...props}: Props) {
 				}
 			}}
 			renderItem={(n, selected) => {
-				const [label, color] = subjectLabel(n);
+				const [label, tone] = subjectLabel(n);
 				return (
 					<>
 						<Line selected={selected}>
 							<Cell w={2}>
-								<Text color="blue">{n.unread ? '●' : ''}</Text>
+								<Text color={t.link}>{n.unread ? '●' : ''}</Text>
 							</Cell>
 							<Cell w={16}>
-								<Text color={color}>{label}</Text>
+								<Text color={t[tone]}>{label}</Text>
 							</Cell>
 							<Cell grow>
 								<Title selected={selected} unread={n.unread}>
@@ -66,17 +68,17 @@ export function InboxPage({resource, gh, actions, ...props}: Props) {
 								</Title>
 							</Cell>
 							<Cell w={18}>
-								<Text dimColor>{n.reason.replace(/_/g, ' ')}</Text>
+								<Muted>{n.reason.replace(/_/g, ' ')}</Muted>
 							</Cell>
 							<Cell w={10}>
-								<Text dimColor>{timeAgo(n.updatedAt)}</Text>
+								<Muted>{timeAgo(n.updatedAt)}</Muted>
 							</Cell>
 						</Line>
 						<Line selected={selected}>
 							<Cell w={18} />
 							<Cell grow>
-								<Text color="blue">{n.repo}</Text>
-								{n.number ? <Text dimColor> #{n.number}</Text> : null}
+								<Text color={t.link}>{n.repo}</Text>
+								{n.number ? <Muted> #{n.number}</Muted> : null}
 							</Cell>
 						</Line>
 					</>
@@ -86,24 +88,26 @@ export function InboxPage({resource, gh, actions, ...props}: Props) {
 	);
 }
 
+type Tone = 'success' | 'done' | 'danger' | 'neutral' | 'link';
+
 // Colors follow github.com: green open, purple merged/completed, red closed, gray draft/not planned.
-function subjectLabel(n: Notification): [string, string] {
+function subjectLabel(n: Notification): [string, Tone] {
 	if (n.type === 'PullRequest') {
-		if (n.state === 'merged') return ['◆ merged PR', 'magenta'];
-		if (n.state === 'closed') return ['✕ closed PR', 'red'];
-		if (n.state === 'draft') return ['◌ draft PR', 'gray'];
-		return ['● open PR', 'green'];
+		if (n.state === 'merged') return ['◆ merged PR', 'done'];
+		if (n.state === 'closed') return ['✕ closed PR', 'danger'];
+		if (n.state === 'draft') return ['◌ draft PR', 'neutral'];
+		return ['● open PR', 'success'];
 	}
 	if (n.type === 'Issue') {
-		if (n.state === 'completed' || n.state === 'closed') return ['✓ closed issue', 'magenta'];
-		if (n.state === 'not_planned') return ['⊘ not planned', 'gray'];
-		return ['● open issue', 'green'];
+		if (n.state === 'completed' || n.state === 'closed') return ['✓ closed issue', 'done'];
+		if (n.state === 'not_planned') return ['⊘ not planned', 'neutral'];
+		return ['● open issue', 'success'];
 	}
-	if (n.type === 'Release') return ['◇ release', 'blue'];
-	if (n.type === 'Discussion') return ['◇ discussion', 'magenta'];
-	if (n.type === 'CheckSuite') return ['▲ CI run', 'red'];
-	if (n.type === 'Commit') return ['◦ commit', 'gray'];
-	return [n.type, 'gray'];
+	if (n.type === 'Release') return ['◇ release', 'link'];
+	if (n.type === 'Discussion') return ['◇ discussion', 'done'];
+	if (n.type === 'CheckSuite') return ['▲ CI run', 'danger'];
+	if (n.type === 'Commit') return ['◦ commit', 'neutral'];
+	return [n.type, 'neutral'];
 }
 
 const inboxSearchText = (n: Notification) =>
