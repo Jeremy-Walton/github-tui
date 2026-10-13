@@ -210,6 +210,13 @@ describe('GitHub', () => {
 	});
 
 	describe('notifications', () => {
+		it('asks GitHub for unread notifications only', async () => {
+			const calls = stubFetch(() => []);
+			await gh.notifications();
+			expect(calls[0]?.url).toContain('/notifications?');
+			expect(calls[0]?.url).not.toContain('all=true');
+		});
+
 		it('maps subjects to web URLs and fills in open/merged/closed state', async () => {
 			stubFetch(({url}) => {
 				if (url.includes('/notifications')) {

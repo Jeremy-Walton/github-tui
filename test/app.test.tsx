@@ -41,7 +41,8 @@ describe('App (demo data)', () => {
 		expect(app.frame()).toContain('acme/sdk-js');
 
 		await app.press('3');
-		expect(app.frame()).toMatch(/› Inbox +6 /);
+		expect(app.frame()).toMatch(/› Inbox +14 /);
+		expect(app.frame()).toMatch(/Search… +14 /);
 		expect(app.frame()).toContain('merged PR');
 	});
 
@@ -133,7 +134,7 @@ describe('App (demo data)', () => {
 		expect(app.frame()).toMatch(/▌1 +Inbox/);
 
 		await app.press('1');
-		expect(app.frame()).toMatch(/› Inbox +6 /);
+		expect(app.frame()).toMatch(/› Inbox +14 /);
 		await app.press('2');
 		expect(app.frame()).toMatch(/› Pull Requests +11 /);
 
@@ -155,7 +156,7 @@ describe('App with a saved sidebar order', () => {
 
 	it('opens on the top page of the sidebar', async () => {
 		const {app} = await start({...DEFAULT_SETTINGS, sidebar: ['inbox', 'pull-requests', 'repositories']});
-		expect(app.frame()).toMatch(/› Inbox +6 /);
+		expect(app.frame()).toMatch(/› Inbox +14 /);
 		app.unmount();
 	});
 });

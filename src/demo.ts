@@ -324,7 +324,7 @@ const REPOS: Repo[] = [
 	}),
 ];
 
-type NotificationInput = Omit<Notification, 'id' | 'url' | 'updatedAt' | 'number' | 'state'> &
+type NotificationInput = Omit<Notification, 'id' | 'url' | 'updatedAt' | 'number' | 'state' | 'unread'> &
 	Partial<Pick<Notification, 'number' | 'state'>> & {age: number};
 
 const NOTIFICATIONS: Notification[] = (
@@ -336,7 +336,6 @@ const NOTIFICATIONS: Notification[] = (
 			state: 'open',
 			title: 'Move invoice PDFs to background jobs',
 			reason: 'review_requested',
-			unread: true,
 			age: 10 * MIN,
 		},
 		{
@@ -344,7 +343,6 @@ const NOTIFICATIONS: Notification[] = (
 			repo: 'acme/api',
 			title: 'CI workflow run failed for main',
 			reason: 'ci_activity',
-			unread: true,
 			age: 22 * MIN,
 		},
 		{
@@ -354,7 +352,6 @@ const NOTIFICATIONS: Notification[] = (
 			state: 'open',
 			title: 'Add Apple Pay to checkout',
 			reason: 'mention',
-			unread: true,
 			age: 25 * MIN,
 		},
 		{
@@ -364,7 +361,6 @@ const NOTIFICATIONS: Notification[] = (
 			state: 'open',
 			title: 'Checkout button stays disabled on Safari 18',
 			reason: 'assign',
-			unread: true,
 			age: 1 * HOUR,
 		},
 		{
@@ -374,7 +370,6 @@ const NOTIFICATIONS: Notification[] = (
 			state: 'merged',
 			title: 'Lazy-load the reviews widget',
 			reason: 'author',
-			unread: false,
 			age: 2 * HOUR,
 		},
 		{
@@ -382,7 +377,6 @@ const NOTIFICATIONS: Notification[] = (
 			repo: 'acme/design-system',
 			title: 'RFC: dark mode color tokens',
 			reason: 'comment',
-			unread: true,
 			age: 3 * HOUR,
 		},
 		{
@@ -392,7 +386,6 @@ const NOTIFICATIONS: Notification[] = (
 			state: 'closed',
 			title: 'Experiment: React Native new architecture',
 			reason: 'subscribed',
-			unread: false,
 			age: 5 * HOUR,
 		},
 		{
@@ -402,10 +395,9 @@ const NOTIFICATIONS: Notification[] = (
 			state: 'open',
 			title: 'Document the new webhooks API',
 			reason: 'comment',
-			unread: true,
 			age: 6 * HOUR,
 		},
-		{type: 'Release', repo: 'acme/sdk-js', title: 'v4.2.0', reason: 'subscribed', unread: false, age: 8 * HOUR},
+		{type: 'Release', repo: 'acme/sdk-js', title: 'v4.2.0', reason: 'subscribed', age: 8 * HOUR},
 		{
 			type: 'Issue',
 			repo: 'acme/api',
@@ -413,7 +405,6 @@ const NOTIFICATIONS: Notification[] = (
 			state: 'completed',
 			title: 'Webhook signatures fail on unicode bodies',
 			reason: 'author',
-			unread: false,
 			age: 1 * DAY,
 		},
 		{
@@ -423,7 +414,6 @@ const NOTIFICATIONS: Notification[] = (
 			state: 'not_planned',
 			title: 'Add a dark theme to the docs site',
 			reason: 'subscribed',
-			unread: false,
 			age: 2 * DAY,
 		},
 		{
@@ -433,7 +423,6 @@ const NOTIFICATIONS: Notification[] = (
 			state: 'draft',
 			title: 'Daily revenue rollup job',
 			reason: 'team_mention',
-			unread: false,
 			age: 3 * DAY,
 		},
 		{
@@ -443,7 +432,6 @@ const NOTIFICATIONS: Notification[] = (
 			state: 'merged',
 			title: 'Tokens: spacing scale v2',
 			reason: 'review_requested',
-			unread: false,
 			age: 4 * DAY,
 		},
 		{
@@ -453,11 +441,18 @@ const NOTIFICATIONS: Notification[] = (
 			state: 'open',
 			title: 'Push notifications arrive twice on Android',
 			reason: 'state_change',
-			unread: false,
 			age: 5 * DAY,
 		},
 	] satisfies NotificationInput[]
-).map(({age, ...n}, i) => ({id: `demo-${i}`, url, number: null, state: null, ...n, updatedAt: ago(age)}));
+).map(({age, ...n}, i) => ({
+	id: `demo-${i}`,
+	url,
+	number: null,
+	state: null,
+	...n,
+	unread: true,
+	updatedAt: ago(age),
+}));
 
 export class DemoGitHub implements GitHubClient {
 	async viewer(): Promise<Viewer> {

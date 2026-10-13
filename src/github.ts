@@ -266,7 +266,7 @@ export class GitHub {
 			subject: {title: string; url: string | null; type: string};
 			repository: {full_name: string; html_url: string};
 		};
-		const raw = await this.paginate<RawNotification>('/notifications?all=true&per_page=50', 6);
+		const raw = await this.paginate<RawNotification>('/notifications?per_page=50', 6);
 		const items = raw.map(n => ({
 			id: n.id,
 			title: n.subject.title,
