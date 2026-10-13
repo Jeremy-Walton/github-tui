@@ -1,29 +1,35 @@
 {
-  "name": "github-tui",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "bin": {
-    "github": "./dist/cli.js"
-  },
-  "scripts": {
-    "check-secrets": "! grep -rnE 'gh[pousr]_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{22,}' src bin README.md package.json tsconfig.json || (echo 'Possible GitHub token found above. Remove it.' && false)",
-    "prebuild": "npm run check-secrets",
-    "build": "tsc",
-    "prepare": "npm run build",
-    "dev": "npm run build && node dist/cli.js",
-    "typecheck": "tsc --noEmit"
-  },
-  "engines": {
-    "node": ">=22"
-  },
-  "dependencies": {
-    "ink": "^7.1.1",
-    "react": "^19.2.8"
-  },
-  "devDependencies": {
-    "@types/node": "^24.19.2",
-    "@types/react": "19.2",
-    "typescript": "^7.0.2"
-  }
+	"name": "github-tui",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"bin": {
+		"github": "./dist/cli.js"
+	},
+	"scripts": {
+		"check-secrets": "! git grep --untracked -nIE 'gh[pousr]_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{22,}' || (echo 'Possible GitHub token found above. Remove it.' && false)",
+		"typecheck": "tsc -p tsconfig.test.json",
+		"lint": "biome check .",
+		"format": "biome check --write .",
+		"test": "vitest run",
+		"check": "npm run check-secrets && npm run typecheck && npm run lint && npm run test",
+		"prebuild": "npm run check-secrets",
+		"build": "tsc",
+		"prepare": "npm run build",
+		"dev": "npm run build && node dist/cli.js"
+	},
+	"engines": {
+		"node": ">=22"
+	},
+	"dependencies": {
+		"ink": "^7.1.1",
+		"react": "^19.2.8"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.14",
+		"@types/node": "^24.19.2",
+		"@types/react": "19.2",
+		"typescript": "^7.0.2",
+		"vitest": "5.0.2"
+	}
 }

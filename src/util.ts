@@ -50,7 +50,8 @@ let cacheDirReady: Promise<unknown> | undefined;
 async function writeCache(key: string, data: unknown) {
 	if (runtime.demo) return;
 	try {
-		await (cacheDirReady ??= mkdir(CACHE_DIR, {recursive: true}));
+		cacheDirReady ??= mkdir(CACHE_DIR, {recursive: true});
+		await cacheDirReady;
 		await writeFile(join(CACHE_DIR, `${key}.json`), JSON.stringify(data));
 	} catch {
 		// Cache is best-effort; a failed write only costs a slower next startup.

@@ -12,7 +12,9 @@ export async function getToken(): Promise<string> {
 		return stdout.trim();
 	} catch (e) {
 		if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-			throw new Error('The GitHub CLI is not installed. Install it from https://cli.github.com, then run `gh auth login`.');
+			throw new Error(
+				'The GitHub CLI is not installed. Install it from https://cli.github.com, then run `gh auth login`.',
+			);
 		}
 		throw new Error('Not logged in to GitHub. Run `gh auth login` first.');
 	}
@@ -117,23 +119,29 @@ export class GitHub {
 			headers: {'Content-Type': 'application/json'},
 		});
 		const json = (await res.json()) as {data: T; errors?: {message: string}[]};
-		if (json.errors?.length && !json.data) throw new Error(json.errors[0]!.message);
+		const firstError = json.errors?.[0];
+		if (firstError && !json.data) throw new Error(firstError.message);
 		return json.data;
 	}
 
-	// One aliased `repository` field per name, sent in batches of `size`. `field(i)` gets the index into `names`.
+	// One aliased `repository` field per item, sent in batches of `size`, paired back with its item.
 	// A failed batch yields nulls rather than failing the whole page.
-	private async batchRepoQuery<T>(names: string[], size: number, field: (i: number) => string, fragment = ''): Promise<(T | null)[]> {
+	private async batchRepoQuery<I, T>(
+		items: I[],
+		repo: (item: I) => string,
+		field: (item: I) => string,
+		{size, fragment = ''}: {size: number; fragment?: string},
+	): Promise<[I, T | null][]> {
 		const batches = await Promise.all(
-			chunk(names, size).map(async (batch, b) => {
-				const fields = batch.map((full, i) => {
-					const [owner, name] = full.split('/');
-					return `r${i}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { ${field(b * size + i)} }`;
+			chunk(items, size).map(async batch => {
+				const fields = batch.map((item, i) => {
+					const [owner, name] = repo(item).split('/');
+					return `r${i}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { ${field(item)} }`;
 				});
 				const data = await this.graphql<Record<string, T | null>>(`query { ${fields.join('\n')} } ${fragment}`).catch(
 					(): Record<string, T | null> => ({}),
 				);
-				return batch.map((_, i) => data[`r${i}`] ?? null);
+				return batch.map((item, i): [I, T | null] => [item, data[`r${i}`] ?? null]);
 			}),
 		);
 		return batches.flat();
@@ -159,8 +167,13 @@ export class GitHub {
 			pushed_at: string;
 		};
 		const [raw, events] = await Promise.all([
-			this.paginate<RawRepo>('/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member', 20),
-			this.paginate<{repo: {name: string}; created_at: string}>(`/users/${login}/events?per_page=100`, 3).catch(() => []),
+			this.paginate<RawRepo>(
+				'/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member',
+				20,
+			),
+			this.paginate<{repo: {name: string}; created_at: string}>(`/users/${login}/events?per_page=100`, 3).catch(
+				() => [],
+			),
 		]);
 
 		const lastActivity = new Map<string, string>();
@@ -201,14 +214,17 @@ export class GitHub {
 		}
 		${PR_FRAGMENT}`;
 
-		const watchedPRs = this.paginate<{full_name: string; archived: boolean}>('/user/subscriptions?per_page=100', 10).then(
-			watched =>
-				this.batchRepoQuery<{pullRequests: {nodes: RawPR[]}}>(
-					watched.filter(r => !r.archived).map(r => r.full_name),
-					4,
-					() => 'pullRequests(states: OPEN, first: 25, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ...pr } }',
-					PR_FRAGMENT,
-				),
+		const watchedPRs = this.paginate<{full_name: string; archived: boolean}>(
+			'/user/subscriptions?per_page=100',
+			10,
+		).then(watched =>
+			this.batchRepoQuery<string, {pullRequests: {nodes: RawPR[]}}>(
+				watched.filter(r => !r.archived).map(r => r.full_name),
+				name => name,
+				() =>
+					'pullRequests(states: OPEN, first: 25, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ...pr } }',
+				{size: 4, fragment: PR_FRAGMENT},
+			),
 		);
 		const [searchData, repoResults] = await Promise.all([
 			this.graphql<Record<string, {nodes: RawPR[]}>>(searchQuery),
@@ -223,17 +239,18 @@ export class GitHub {
 			result.push(toPullRequest(raw, section));
 		};
 
-		searches.forEach(([section], i) => {
+		for (const [i, [section]] of searches.entries()) {
 			const nodes = [...(searchData[`s${i}`]?.nodes ?? [])].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-			nodes.forEach(n => add(n, section));
-		});
+			for (const n of nodes) add(n, section);
+		}
 
+		const newest = (nodes: RawPR[]) => nodes[0]?.updatedAt ?? '';
 		const byRepo = repoResults
-			.map(r => r?.pullRequests.nodes ?? [])
+			.map(([, r]) => r?.pullRequests.nodes ?? [])
 			.filter(nodes => nodes.length > 0)
-			.sort((a, b) => b[0]!.updatedAt.localeCompare(a[0]!.updatedAt));
+			.sort((a, b) => newest(b).localeCompare(newest(a)));
 
-		for (const nodes of byRepo) nodes.forEach(n => add(n, n.repository.nameWithOwner));
+		for (const n of byRepo.flat()) add(n, n.repository.nameWithOwner);
 		return result;
 	}
 
@@ -266,17 +283,18 @@ export class GitHub {
 	// The notifications API doesn't say whether the PR/issue is open, merged, or closed, so look it up.
 	private async fillSubjectStates(items: Notification[]) {
 		const targets = items.filter(n => n.number !== null);
-		const results = await this.batchRepoQuery<{issueOrPullRequest: Subject | null}>(
-			targets.map(n => n.repo),
-			25,
-			i => `issueOrPullRequest(number: ${targets[i]!.number}) {
+		const results = await this.batchRepoQuery<Notification, {issueOrPullRequest: Subject | null}>(
+			targets,
+			n => n.repo,
+			n => `issueOrPullRequest(number: ${n.number}) {
 				... on PullRequest { state isDraft }
 				... on Issue { state stateReason }
 			}`,
+			{size: 25},
 		);
-		results.forEach((r, i) => {
-			if (r?.issueOrPullRequest) targets[i]!.state = subjectState(r.issueOrPullRequest);
-		});
+		for (const [n, r] of results) {
+			if (r?.issueOrPullRequest) n.state = subjectState(r.issueOrPullRequest);
+		}
 	}
 
 	async markRead(threadId: string) {

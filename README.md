@@ -120,4 +120,12 @@ npm run dev
 
 `npm run dev -- --demo` runs on made-up data from `src/demo.ts`. Demo mode makes no GitHub calls, doesn't open links, and doesn't read or write the cache.
 
-`npm run build` checks for GitHub tokens in the source before it compiles.
+| Command | What it does |
+| --- | --- |
+| `npm run check` | Everything below, plus a scan for GitHub tokens. CI runs this on every push. |
+| `npm run typecheck` | Strict TypeScript over `src/` and `test/` |
+| `npm run lint` | Biome lint and format check |
+| `npm run format` | Biome safe fixes and formatting |
+| `npm test` | Vitest: unit tests, the GitHub client with stubbed responses, and the app rendered on demo data |
+
+Claude Code hooks in `.claude/settings.json` run these for you. After each edit, the changed file is formatted and linted and the project is typechecked. When Claude finishes with uncommitted changes, `npm run check` runs, and failures go back to Claude.

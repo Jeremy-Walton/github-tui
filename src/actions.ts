@@ -63,6 +63,6 @@ export class ActionQueue {
 
 	private changed() {
 		this.ids = new Set(this.pending.map(p => p.id));
-		this.listeners.forEach(l => l());
+		for (const listener of this.listeners) listener();
 	}
 }

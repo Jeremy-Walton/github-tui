@@ -1,12 +1,12 @@
 import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
-import {useEffect, useState, type ReactNode} from 'react';
+import {type ReactNode, useEffect, useState} from 'react';
 import type {ActionQueue} from './actions.js';
 import type {GitHubClient, Viewer} from './github.js';
 import {INBOX_HINTS, InboxPage} from './pages/Inbox.js';
 import {PullRequestsPage} from './pages/PullRequests.js';
 import {ReposPage} from './pages/Repos.js';
 import type {PageProps} from './pages/types.js';
-import {useResource, type Resource} from './util.js';
+import {type Resource, useResource} from './util.js';
 
 const SIDEBAR_WIDTH = 24;
 const NO_SEARCH: Search = {query: '', searching: false};
@@ -38,7 +38,7 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 	const repos = useResource(`${viewer.login}-repos`, () => gh.repos(viewer.login), {wait: othersWait});
 	const inbox = useResource(`${viewer.login}-inbox`, () => gh.notifications(), {wait: othersWait});
 
-	const pages: Page[] = [
+	const pages: [Page, ...Page[]] = [
 		{
 			name: 'Pull Requests',
 			resource: prs,
@@ -59,7 +59,7 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 			render: p => <InboxPage resource={inbox} gh={gh} actions={actions} {...p} />,
 		},
 	];
-	const current = pages[page]!;
+	const current = pages[page] ?? pages[0];
 
 	useEffect(() => {
 		if (!message) return;
@@ -137,7 +137,12 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 					paddingX={1}
 				>
 					{pages.map(({name, count}, i) => (
-						<Text key={name} wrap="truncate-end" inverse={i === page && focus === 'sidebar'} color={i === page ? 'cyan' : undefined}>
+						<Text
+							key={name}
+							wrap="truncate-end"
+							inverse={i === page && focus === 'sidebar'}
+							color={i === page ? 'cyan' : undefined}
+						>
 							{i === page ? '› ' : '  '}
 							{name}
 							{count !== undefined ? <Text dimColor> {count}</Text> : null}
@@ -154,7 +159,9 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 						{message}
 					</Text>
 				) : (
-					<Text dimColor wrap="truncate-end">{hints(current, pages.length, focus, search.searching)}</Text>
+					<Text dimColor wrap="truncate-end">
+						{hints(current, pages.length, focus, search.searching)}
+					</Text>
 				)}
 			</Box>
 		</Box>

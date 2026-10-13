@@ -1,7 +1,7 @@
 import {Text} from 'ink';
-import {Cell, Line, ListView, Title} from '../ListView.js';
 import type {Repo} from '../github.js';
-import {openUrl, timeAgo, type Resource} from '../util.js';
+import {Cell, Line, ListView, Title} from '../ListView.js';
+import {openUrl, type Resource, timeAgo} from '../util.js';
 import type {PageProps} from './types.js';
 
 export function ReposPage({resource, ...props}: PageProps & {resource: Resource<Repo[]>}) {
@@ -11,7 +11,7 @@ export function ReposPage({resource, ...props}: PageProps & {resource: Resource<
 			resource={resource}
 			emptyText="No repositories."
 			getKey={r => r.fullName}
-			getSearchText={r => `${r.fullName} ${r.description ?? ''}`}
+			getSearchText={repoSearchText}
 			onOpen={r => openUrl(r.url)}
 			renderItem={(r, selected) => (
 				<>
@@ -51,3 +51,5 @@ export function ReposPage({resource, ...props}: PageProps & {resource: Resource<
 		/>
 	);
 }
+
+const repoSearchText = (r: Repo) => `${r.fullName} ${r.description ?? ''}`;

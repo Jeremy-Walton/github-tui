@@ -1,9 +1,9 @@
 import {Text} from 'ink';
 import {useMemo, useSyncExternalStore} from 'react';
-import {Cell, Line, ListView, Title} from '../ListView.js';
 import type {ActionQueue} from '../actions.js';
 import type {GitHubClient, Notification} from '../github.js';
-import {openUrl, timeAgo, type Resource} from '../util.js';
+import {Cell, Line, ListView, Title} from '../ListView.js';
+import {openUrl, type Resource, timeAgo} from '../util.js';
 import type {PageProps} from './types.js';
 
 export const INBOX_HINTS = 'e done · t unsubscribe · u undo';
@@ -32,7 +32,7 @@ export function InboxPage({resource, gh, actions, ...props}: Props) {
 			items={items}
 			emptyText="Inbox zero."
 			getKey={n => n.id}
-			getSearchText={n => `${n.repo} #${n.number ?? ''} ${n.title} ${n.reason} ${n.type} ${n.state ?? ''}`}
+			getSearchText={inboxSearchText}
 			onOpen={n => {
 				openUrl(n.url);
 				if (n.unread) {
@@ -105,3 +105,6 @@ function subjectLabel(n: Notification): [string, string] {
 	if (n.type === 'Commit') return ['◦ commit', 'gray'];
 	return [n.type, 'gray'];
 }
+
+const inboxSearchText = (n: Notification) =>
+	`${n.repo} #${n.number ?? ''} ${n.title} ${n.reason} ${n.type} ${n.state ?? ''}`;

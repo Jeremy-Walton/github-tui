@@ -1,5 +1,5 @@
 import {Box, Text, useInput} from 'ink';
-import {useMemo, useRef, useState, type ReactNode} from 'react';
+import {type ReactNode, useMemo, useRef, useState} from 'react';
 import {matches, type Resource} from './util.js';
 
 type Props<T> = {
@@ -26,7 +26,7 @@ const ITEM_HEIGHT = 2;
 const SELECTED_BG = '#2b3d5a';
 
 export function ListView<T>(props: Props<T>) {
-	const {resource, getGroup, height, query, searching, active} = props;
+	const {resource, getSearchText, getGroup, height, query, searching, active} = props;
 	const items = props.items ?? resource.data ?? [];
 	const [selected, setSelected] = useState(0);
 	const [selectedQuery, setSelectedQuery] = useState(query);
@@ -39,8 +39,8 @@ export function ListView<T>(props: Props<T>) {
 	}
 
 	const filtered = useMemo(
-		() => (query ? items.filter(item => matches(props.getSearchText(item), query)) : items),
-		[items, query],
+		() => (query ? items.filter(item => matches(getSearchText(item), query)) : items),
+		[items, query, getSearchText],
 	);
 
 	const sel = Math.min(selected, Math.max(0, filtered.length - 1));
@@ -70,7 +70,7 @@ export function ListView<T>(props: Props<T>) {
 	// Keep the selected item (and its group header, when it's first in the group) in view.
 	const selRowIdx = rows.findIndex(r => r.kind === 'item' && r.index === sel);
 	let selTop = 0;
-	for (let i = 0; i < selRowIdx; i++) selTop += rowHeight(rows[i]!);
+	for (const row of rows.slice(0, Math.max(0, selRowIdx))) selTop += rowHeight(row);
 	const prev = rows[selRowIdx - 1];
 	const wantTop = prev?.kind === 'header' ? selTop - rowHeight(prev) : selTop;
 	if (wantTop < scrollTop.current) scrollTop.current = Math.max(0, wantTop);
@@ -120,7 +120,7 @@ export function ListView<T>(props: Props<T>) {
 					<Text>
 						<Text dimColor>/ </Text>
 						{query}
-						<Text dimColor>  (esc to clear)</Text>
+						<Text dimColor> (esc to clear)</Text>
 					</Text>
 				) : (
 					<Text dimColor>/ Search…</Text>
@@ -138,7 +138,9 @@ export function ListView<T>(props: Props<T>) {
 			) : null}
 			<Box flexDirection="column" paddingX={1} flexGrow={1}>
 				{filtered.length === 0 ? (
-					<Text dimColor>{resource.loading && items.length === 0 ? 'Loading…' : query ? 'No matches.' : props.emptyText}</Text>
+					<Text dimColor>
+						{resource.loading && items.length === 0 ? 'Loading…' : query ? 'No matches.' : props.emptyText}
+					</Text>
 				) : (
 					visible.map(row =>
 						row.kind === 'header' ? (
@@ -156,7 +158,14 @@ export function ListView<T>(props: Props<T>) {
 								>
 									{props.renderItem(row.item, row.index === sel)}
 								</Box>
-								<Box borderStyle="single" borderTop={false} borderLeft={false} borderRight={false} borderColor="gray" borderDimColor />
+								<Box
+									borderStyle="single"
+									borderTop={false}
+									borderLeft={false}
+									borderRight={false}
+									borderColor="gray"
+									borderDimColor
+								/>
 							</Box>
 						),
 					)

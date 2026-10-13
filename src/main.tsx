@@ -2,7 +2,7 @@ import {render} from 'ink';
 import {App} from './App.js';
 import {ActionQueue} from './actions.js';
 import {DemoGitHub} from './demo.js';
-import {GitHub, getToken, type GitHubClient} from './github.js';
+import {GitHub, type GitHubClient, getToken} from './github.js';
 import {runtime} from './util.js';
 
 try {
