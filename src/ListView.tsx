@@ -29,7 +29,7 @@ const ITEM_HEIGHT = 2;
 export function ListView<T>(props: Props<T>) {
 	const {resource, getSearchText, getGroup, height, query, searching, active} = props;
 	const items = props.items ?? resource.data ?? [];
-	const [selected, setSelected] = useState(0);
+	const [selection, setSelection] = useState<{key: string | undefined; index: number}>({key: undefined, index: 0});
 	const [selectedQuery, setSelectedQuery] = useState(query);
 	const scrollTop = useRef(0);
 	const t = useTheme();
@@ -37,7 +37,7 @@ export function ListView<T>(props: Props<T>) {
 	// A new query starts at the top. Adjusting during render avoids a second render per keystroke.
 	if (query !== selectedQuery) {
 		setSelectedQuery(query);
-		setSelected(0);
+		setSelection({key: undefined, index: 0});
 	}
 
 	const filtered = useMemo(
@@ -45,7 +45,15 @@ export function ListView<T>(props: Props<T>) {
 		[items, query, getSearchText],
 	);
 
-	const sel = Math.min(selected, Math.max(0, filtered.length - 1));
+	// The cursor follows its item when the list reorders or refreshes. Once the item is gone (e.g. marked
+	// done), the cursor keeps its place, which puts it on the next item.
+	const found = selection.key === undefined ? -1 : filtered.findIndex(item => props.getKey(item) === selection.key);
+	const sel = found === -1 ? Math.min(selection.index, Math.max(0, filtered.length - 1)) : found;
+	const select = (index: number) => {
+		const i = Math.max(0, Math.min(filtered.length - 1, index));
+		const item = filtered[i];
+		setSelection({key: item && props.getKey(item), index: i});
+	};
 
 	const rows = useMemo(() => {
 		const counts = new Map<string, number>();
@@ -93,7 +101,7 @@ export function ListView<T>(props: Props<T>) {
 
 	useInput(
 		(input, key) => {
-			const move = (delta: number) => setSelected(Math.max(0, Math.min(filtered.length - 1, sel + delta)));
+			const move = (delta: number) => select(sel + delta);
 			const page = Math.max(1, Math.floor(listHeight / slotHeight) - 1);
 			const current = filtered[sel];
 
@@ -101,8 +109,8 @@ export function ListView<T>(props: Props<T>) {
 			if (key.downArrow || (!searching && input === 'j')) return move(1);
 			if (key.pageUp) return move(-page);
 			if (key.pageDown) return move(page);
-			if (key.home || (!searching && input === 'g')) return setSelected(0);
-			if (key.end || (!searching && input === 'G')) return setSelected(filtered.length - 1);
+			if (key.home || (!searching && input === 'g')) return select(0);
+			if (key.end || (!searching && input === 'G')) return select(filtered.length - 1);
 			if (key.return && current) return props.onOpen(current);
 			if (!searching && current && input && !key.ctrl && !key.meta) props.onAction?.(input, current);
 		},

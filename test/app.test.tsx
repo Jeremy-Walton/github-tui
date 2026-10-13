@@ -2,6 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {App} from '../src/App.js';
 import {ActionQueue} from '../src/actions.js';
 import {DemoGitHub} from '../src/demo.js';
+import {DEFAULT_SETTINGS, type Settings} from '../src/settings.js';
 import {runtime} from '../src/util.js';
 import {keys, ROWS, renderApp, tick} from './render.js';
 
@@ -13,11 +14,7 @@ describe('App (demo data)', () => {
 	let gh: DemoGitHub;
 
 	beforeEach(async () => {
-		runtime.demo = true;
-		gh = new DemoGitHub();
-		actions = new ActionQueue(60_000);
-		app = renderApp(<App gh={gh} viewer={viewer} actions={actions} />);
-		await tick();
+		({app, actions, gh} = await start());
 	});
 
 	afterEach(() => {
@@ -87,18 +84,21 @@ describe('App (demo data)', () => {
 		expect(unsubscribe).toHaveBeenCalledWith('demo-0');
 	});
 
-	it('shows who is signed in and the themes on the settings page', async () => {
+	it('shows who is signed in, the options, and the themes on the settings page', async () => {
 		await app.press('4');
 		const frame = app.frame();
 		expect(frame).toContain('› Settings');
 		expect(frame).toContain('Signed in as');
 		expect(frame).toContain('demo data');
-		expect(frame).toContain('Cobalt2');
+		expect(frame).toMatch(/Show bot pull requests +off/);
+		expect(frame).toMatch(/✓ Show watched repos +on/);
+		expect(frame).toContain('Sidebar order');
+		expect(frame).toContain('Terminal');
 		expect(frame.split('\n').length).toBeLessThanOrEqual(ROWS);
 	});
 
 	it('switches theme with enter', async () => {
-		await app.press('4', 'j', 'j', '\r');
+		await app.press('4', ...down(7), '\r');
 		expect(app.frame()).toContain('Theme: Cobalt2');
 		expect(app.frame()).toMatch(/▌✓ Cobalt2 +current/);
 
@@ -107,9 +107,63 @@ describe('App (demo data)', () => {
 		expect(app.frame()).toMatch(/▌✓ Terminal +current/);
 	});
 
+	it('hides bot pull requests until they are turned on', async () => {
+		await app.press('/', 'b', 'u', 'm', 'p');
+		expect(app.frame()).not.toContain('Bump nokogiri');
+
+		await app.press(keys.escape, keys.escape, '4', 'j', '\r');
+		expect(app.frame()).toContain('Bot pull requests: shown');
+		expect(app.frame()).toMatch(/Pull Requests +12 /);
+
+		await app.press('1', '/', 'b', 'u', 'm', 'p');
+		expect(app.frame()).toContain('Bump nokogiri');
+	});
+
+	it('hides watched-repo pull requests when they are turned off', async () => {
+		await app.press('4', 'j', 'j', '\r');
+		expect(app.frame()).toContain('Watched repos: hidden');
+		expect(app.frame()).toMatch(/Pull Requests +8 /);
+	});
+
+	it('moves sidebar pages with J and K and keeps the cursor on the moved page', async () => {
+		await app.press('4', ...down(5), 'K', 'K');
+		expect(app.frame()).toMatch(/▌1 +Inbox/);
+
+		await app.press('1');
+		expect(app.frame()).toMatch(/› Inbox +6 /);
+		await app.press('2');
+		expect(app.frame()).toMatch(/› Pull Requests +11 /);
+
+		await app.press('4', ...down(4), 'J');
+		expect(app.frame()).toMatch(/▌3 +Pull Requests/);
+	});
+
 	it('moves focus to the sidebar and switches pages with arrows', async () => {
 		await app.press(keys.left, keys.down);
 		expect(app.frame()).toContain('› Repositories');
 		expect(app.frame()).toContain('switch page');
 	});
 });
+
+describe('App with a saved sidebar order', () => {
+	afterEach(() => {
+		runtime.demo = false;
+	});
+
+	it('opens on the top page of the sidebar', async () => {
+		const {app} = await start({...DEFAULT_SETTINGS, sidebar: ['inbox', 'pull-requests', 'repositories']});
+		expect(app.frame()).toMatch(/› Inbox +6 /);
+		app.unmount();
+	});
+});
+
+async function start(settings?: Settings) {
+	runtime.demo = true;
+	const gh = new DemoGitHub();
+	const actions = new ActionQueue(60_000);
+	const app = renderApp(<App gh={gh} viewer={viewer} actions={actions} settings={settings} />);
+	await tick();
+	return {app, actions, gh};
+}
+
+const down = (n: number) => Array<string>(n).fill('j');

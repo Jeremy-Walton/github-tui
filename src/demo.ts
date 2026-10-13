@@ -25,6 +25,8 @@ function pr(p: PRInput & {age: number}): PullRequest {
 		comments: 0,
 		labels: [],
 		headRef: 'feature',
+		bot: false,
+		watched: false,
 		...p,
 	};
 }
@@ -133,6 +135,7 @@ const PULL_REQUESTS: PullRequest[] = [
 	pr({
 		section: 'acme/docs',
 		repo: 'acme/docs',
+		watched: true,
 		number: 88,
 		title: 'Document the new webhooks API',
 		author: 'taylor-r',
@@ -145,6 +148,7 @@ const PULL_REQUESTS: PullRequest[] = [
 	pr({
 		section: 'acme/docs',
 		repo: 'acme/docs',
+		watched: true,
 		number: 85,
 		title: 'Fix broken links in Getting Started',
 		author: 'sam-o',
@@ -154,8 +158,23 @@ const PULL_REQUESTS: PullRequest[] = [
 		deletions: 12,
 	}),
 	pr({
+		section: 'acme/docs',
+		repo: 'acme/docs',
+		watched: true,
+		bot: true,
+		number: 84,
+		title: 'Bump nokogiri from 1.16.5 to 1.16.6',
+		author: 'dependabot',
+		age: 3 * DAY,
+		reviewDecision: null,
+		additions: 3,
+		deletions: 3,
+		labels: ['dependencies'],
+	}),
+	pr({
 		section: 'acme/analytics',
 		repo: 'acme/analytics',
+		watched: true,
 		number: 45,
 		title: 'Daily revenue rollup job',
 		author: 'mira-chen',

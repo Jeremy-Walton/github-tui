@@ -1,16 +1,20 @@
 import {Text} from 'ink';
 import type {PullRequest} from '../github.js';
 import {Cell, Line, ListView, Title} from '../ListView.js';
+import type {Settings} from '../settings.js';
 import {Muted, useTheme} from '../theme.js';
 import {openUrl, type Resource, timeAgo} from '../util.js';
 import type {PageProps} from './types.js';
 
-export function PullRequestsPage({resource, ...props}: PageProps & {resource: Resource<PullRequest[]>}) {
+type Props = PageProps & {resource: Resource<PullRequest[]>; items: PullRequest[]};
+
+export function PullRequestsPage({resource, items, ...props}: Props) {
 	const t = useTheme();
 	return (
 		<ListView
 			{...props}
 			resource={resource}
+			items={items}
 			emptyText="No open pull requests."
 			getKey={pr => pr.id}
 			getGroup={bySection}
@@ -60,6 +64,10 @@ export function PullRequestsPage({resource, ...props}: PageProps & {resource: Re
 			)}
 		/>
 	);
+}
+
+export function visiblePullRequests(prs: PullRequest[], settings: Settings): PullRequest[] {
+	return prs.filter(pr => (settings.showBotPullRequests || !pr.bot) && (settings.showWatchedRepos || !pr.watched));
 }
 
 const bySection = (pr: PullRequest) => pr.section;

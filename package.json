@@ -16,7 +16,8 @@
 		"prebuild": "npm run check-secrets",
 		"build": "tsc",
 		"prepare": "npm run build",
-		"dev": "npm run build && node dist/cli.js"
+		"dev": "npm run build && node dist/cli.js",
+		"screenshots": "node scripts/screenshots.mjs"
 	},
 	"engines": {
 		"node": ">=22"
@@ -29,6 +30,8 @@
 		"@biomejs/biome": "2.5.14",
 		"@types/node": "^24.19.2",
 		"@types/react": "19.2",
+		"@xterm/headless": "6.0.0",
+		"puppeteer-core": "24.43.1",
 		"typescript": "^7.0.2",
 		"vitest": "5.0.2"
 	}

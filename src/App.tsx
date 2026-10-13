@@ -1,13 +1,13 @@
 import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
-import {Fragment, type ReactNode, useEffect, useState} from 'react';
+import {Fragment, type ReactNode, useEffect, useMemo, useState} from 'react';
 import type {ActionQueue} from './actions.js';
 import type {GitHubClient, Viewer} from './github.js';
 import {INBOX_HINTS, InboxPage} from './pages/Inbox.js';
-import {PullRequestsPage} from './pages/PullRequests.js';
+import {PullRequestsPage, visiblePullRequests} from './pages/PullRequests.js';
 import {ReposPage} from './pages/Repos.js';
 import {SETTINGS_HINTS, SettingsPage} from './pages/Settings.js';
-import type {PageProps} from './pages/types.js';
-import {readSettings, type Settings, writeSettings} from './settings.js';
+import {PAGE_NAMES, type PageProps} from './pages/types.js';
+import {DEFAULT_SETTINGS, type PageId, readSettings, type Settings, writeSettings} from './settings.js';
 import {borderProps, findTheme, Muted, type Theme, ThemeProvider} from './theme.js';
 import {type Resource, useResource} from './util.js';
 
@@ -21,6 +21,7 @@ const TERMINAL_BACKGROUND = 'terminal';
 type Focus = 'sidebar' | 'main';
 type Search = {query: string; searching: boolean};
 type Page = {
+	id: PageId | 'settings';
 	name: string;
 	resource: Pick<Resource<unknown>, 'loading' | 'refresh'>;
 	count: number | undefined;
@@ -31,12 +32,12 @@ type Page = {
 
 type Props = {gh: GitHubClient; viewer: Viewer; actions: ActionQueue; settings?: Settings};
 
-export function App({gh, viewer, actions, settings: initialSettings = {theme: 'default'}}: Props) {
+export function App({gh, viewer, actions, settings: initialSettings = DEFAULT_SETTINGS}: Props) {
 	const {exit} = useApp();
 	const {columns, rows} = useWindowSize();
-	const [page, setPage] = useState(0);
+	const [pageId, setPageId] = useState<Page['id']>(initialSettings.sidebar[0] ?? 'pull-requests');
 	const [focus, setFocus] = useState<Focus>('main');
-	const [searches, setSearches] = useState<Record<number, Search>>({});
+	const [searches, setSearches] = useState<Partial<Record<Page['id'], Search>>>({});
 	const [message, setMessage] = useState('');
 	const [settings, setSettings] = useState(initialSettings);
 	const theme = findTheme(settings.theme);
@@ -46,45 +47,57 @@ export function App({gh, viewer, actions, settings: initialSettings = {theme: 'd
 		writeSettings(next).catch((e: Error) => setMessage(`Couldn't save settings: ${e.message}`));
 	};
 
-	const prs = useResource(`${viewer.login}-prs`, () => gh.pullRequests());
-	// Pull requests are the landing page, so the other pages wait for its first fetch to finish.
+	// The top sidebar page is the landing page, so the other pages wait for its first fetch to finish.
 	const [othersWait, setOthersWait] = useState(true);
-	useEffect(() => {
-		if (!prs.loading) setOthersWait(false);
-	}, [prs.loading]);
-	const repos = useResource(`${viewer.login}-repos`, () => gh.repos(viewer.login), {wait: othersWait});
-	const inbox = useResource(`${viewer.login}-inbox`, () => gh.notifications(), {wait: othersWait});
+	const top = settings.sidebar[0];
+	const waitUnlessTop = (id: PageId) => ({wait: othersWait && id !== top});
+	const prs = useResource(`${viewer.login}-prs`, () => gh.pullRequests(), waitUnlessTop('pull-requests'));
+	const repos = useResource(`${viewer.login}-repos`, () => gh.repos(viewer.login), waitUnlessTop('repositories'));
+	const inbox = useResource(`${viewer.login}-inbox`, () => gh.notifications(), waitUnlessTop('inbox'));
 
-	const pages: [Page, ...Page[]] = [
-		{
-			name: 'Pull Requests',
+	const shownPRs = useMemo(() => visiblePullRequests(prs.data ?? [], settings), [prs.data, settings]);
+
+	const sidebarPages: Record<PageId, Page> = {
+		'pull-requests': {
+			id: 'pull-requests',
+			name: PAGE_NAMES['pull-requests'],
 			resource: prs,
-			count: prs.data?.length,
-			render: p => <PullRequestsPage resource={prs} {...p} />,
+			count: prs.data ? shownPRs.length : undefined,
+			render: p => <PullRequestsPage resource={prs} items={shownPRs} {...p} />,
 		},
-		{
-			name: 'Repositories',
+		repositories: {
+			id: 'repositories',
+			name: PAGE_NAMES.repositories,
 			resource: repos,
 			count: repos.data?.length,
 			render: p => <ReposPage resource={repos} {...p} />,
 		},
-		{
-			name: 'Inbox',
+		inbox: {
+			id: 'inbox',
+			name: PAGE_NAMES.inbox,
 			resource: inbox,
 			count: inbox.data?.filter(n => n.unread).length,
 			hints: INBOX_HINTS,
 			render: p => <InboxPage resource={inbox} gh={gh} actions={actions} {...p} />,
 		},
-		{
-			name: 'Settings',
-			resource: {loading: false, refresh: () => void readSettings().then(setSettings)},
-			count: undefined,
-			hints: SETTINGS_HINTS,
-			atBottom: true,
-			render: p => <SettingsPage viewer={viewer} settings={settings} onChange={saveSettings} {...p} />,
-		},
-	];
-	const current = pages[page] ?? pages[0];
+	};
+	const settingsPage: Page = {
+		id: 'settings',
+		name: 'Settings',
+		resource: {loading: false, refresh: () => void readSettings().then(setSettings)},
+		count: undefined,
+		hints: SETTINGS_HINTS,
+		atBottom: true,
+		render: p => <SettingsPage viewer={viewer} settings={settings} onChange={saveSettings} {...p} />,
+	};
+	const pages = [...settings.sidebar.map(id => sidebarPages[id]), settingsPage];
+	const topLoading = pages[0]?.resource.loading;
+	useEffect(() => {
+		if (!topLoading) setOthersWait(false);
+	}, [topLoading]);
+	const current = pages.find(p => p.id === pageId) ?? settingsPage;
+	const index = pages.indexOf(current);
+	const goTo = (i: number) => setPageId((pages[Math.max(0, Math.min(pages.length - 1, i))] ?? current).id);
 
 	useEffect(() => {
 		if (!message) return;
@@ -92,8 +105,8 @@ export function App({gh, viewer, actions, settings: initialSettings = {theme: 'd
 		return () => clearTimeout(t);
 	}, [message]);
 
-	const search = searches[page] ?? NO_SEARCH;
-	const setSearch = (patch: Partial<Search>) => setSearches(all => ({...all, [page]: {...search, ...patch}}));
+	const search = searches[current.id] ?? NO_SEARCH;
+	const setSearch = (patch: Partial<Search>) => setSearches(all => ({...all, [current.id]: {...search, ...patch}}));
 
 	useInput((input, key) => {
 		if (search.searching) {
@@ -113,7 +126,7 @@ export function App({gh, viewer, actions, settings: initialSettings = {theme: 'd
 		}
 		const n = Number(input);
 		if (n >= 1 && n <= pages.length) {
-			setPage(n - 1);
+			goTo(n - 1);
 			return setFocus('main');
 		}
 		if (input === 'r') {
@@ -125,8 +138,8 @@ export function App({gh, viewer, actions, settings: initialSettings = {theme: 'd
 		if (key.leftArrow || input === 'h') return setFocus('sidebar');
 		if (focus === 'sidebar') {
 			if (key.rightArrow || input === 'l' || key.return) return setFocus('main');
-			if (key.upArrow || input === 'k') return setPage(p => Math.max(0, p - 1));
-			if (key.downArrow || input === 'j') return setPage(p => Math.min(pages.length - 1, p + 1));
+			if (key.upArrow || input === 'k') return goTo(index - 1);
+			if (key.downArrow || input === 'j') return goTo(index + 1);
 		}
 	});
 
@@ -168,13 +181,13 @@ export function App({gh, viewer, actions, settings: initialSettings = {theme: 'd
 						borderStyle="round"
 						{...borderProps(theme, focus === 'sidebar')}
 					>
-						{pages.map((p, i) => (
-							<Fragment key={p.name}>
+						{pages.map(p => (
+							<Fragment key={p.id}>
 								{p.atBottom ? <Box flexGrow={1} /> : null}
 								<SidebarItem
 									page={p}
-									current={i === page}
-									highlighted={i === page && focus === 'sidebar'}
+									current={p === current}
+									highlighted={p === current && focus === 'sidebar'}
 									theme={theme}
 								/>
 							</Fragment>

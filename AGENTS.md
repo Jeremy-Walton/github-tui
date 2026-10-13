@@ -26,8 +26,8 @@ Install, keys, and the dev commands are in @README.md. Read it first.
 
 - **Auth:** always the `gh` keychain login (`gh auth token --hostname github.com`). `GITHUB_TOKEN` and `GH_TOKEN` are removed from the environment on purpose. Secrets never go in the code or the settings file; anyone with `gh` logged in can use the app.
 - **Launch:** `bin/github` is linked into `~/.local/bin`. It runs on the global nodenv version when nodenv exists, because a project's `.node-version` once hid the command.
-- **Startup:** Pull Requests is the first page and loads first. Repos and Inbox wait for the first PR fetch. Cached data in `~/.cache/github-tui` shows right away on every page.
-- **Pull Requests:** sections in this order: Assigned to you, Review requested, Your pull requests, then one group per watched repo (newest PR first). Each PR shows once. Dependabot PRs are hidden.
+- **Startup:** the top sidebar page (Pull Requests by default) opens and loads first. The other pages wait for its first fetch. Settings always stays at the bottom of the sidebar. Cached data in `~/.cache/github-tui` shows right away on every page.
+- **Pull Requests:** sections in this order: Assigned to you, Review requested, Your pull requests, then one group per watched repo (newest PR first). Each PR shows once. Bot PRs (Dependabot and Renovate only, not the Copilot agent) are hidden unless Settings turns them on. Settings can also hide the watched-repo groups.
 - **Repositories:** sorted by the user's own activity (their event feed: the last 300 events or 90 days), then by push time.
 - **Inbox:** mirrors github.com notifications (`all=true`). It shows each PR or issue's open, merged, closed, or draft state through a separate GraphQL lookup. Keys: `e` done, `t` unsubscribe (also marks done), `u` undo, Enter opens the item and marks it read.
 - **Undo:** GitHub can't un-mark a notification as done, so actions wait 15 seconds in `ActionQueue` before they're sent. Pending actions are sent on quit, SIGHUP, and SIGTERM.
@@ -44,7 +44,7 @@ Install, keys, and the dev commands are in @README.md. Read it first.
 - **Watched-repo PR queries** go in GraphQL batches of 4 that run in parallel. Bigger batches were much slower (14 s vs 6 s). A failed batch is skipped, not fatal.
 - **`mergeable` is often `UNKNOWN`** because GitHub computes it lazily. Only `CONFLICTING` is shown.
 - **TypeScript is v7** (the native compiler). Dependencies are pinned to versions at least 2 weeks old when added.
-- **README screenshots** (`docs/screenshots/`) come from `--demo` mode. They were made by running the app in a pty, replaying the output into `@xterm/headless`, and screenshotting with headless Chrome (puppeteer-core). That script is not in the repo.
+- **README screenshots** (`docs/screenshots/`) come from `--demo` mode via `npm run screenshots` (@scripts/screenshots.mjs). Remake them when the layout changes.
 
 ## Known open items
 

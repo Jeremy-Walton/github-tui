@@ -16,7 +16,9 @@ The app uses your `gh` login and never stores a token: it asks `gh auth token` e
 
 ![Repositories page with a search](docs/screenshots/repositories.png)
 
-**Settings** shows who you're signed in as and lets you pick a color theme: Terminal (your terminal's own colors), Cobalt2, Dracula, Nord, Solarized Dark, Gruvbox Dark, Tokyo Night, or GitHub Light. Your choice is saved to `~/.config/github-tui/settings.json` (or `$XDG_CONFIG_HOME/github-tui`). Themes look best in a terminal with 24-bit color.
+**Settings** shows who you're signed in as and lets you pick a color theme: Terminal (your terminal's own colors), Cobalt2, Dracula, Nord, Solarized Dark, Gruvbox Dark, Tokyo Night, or GitHub Light. It also lets you show bot pull requests (Dependabot and Renovate, hidden by default), hide the watched-repo groups on the Pull requests page, and reorder the sidebar with `shift+j` and `shift+k`. The top sidebar page opens first. Your choices are saved to `~/.config/github-tui/settings.json` (or `$XDG_CONFIG_HOME/github-tui`). Themes look best in a terminal with 24-bit color.
+
+![Settings page with the theme list](docs/screenshots/settings.png)
 
 > Screenshots use made-up data. Run `github --demo` to try the UI without touching your account.
 
@@ -103,10 +105,11 @@ Then delete the cloned `github-tui` folder.
 | Key | Action |
 | --- | --- |
 | `↑` `↓` / `j` `k` | Move |
-| `enter` | Open in browser (Settings: use the selected theme) |
+| `enter` | Open in browser (Settings: use the selected theme or switch the selected option) |
 | `/` | Focus search (`esc` to leave, `esc` again to clear) |
 | `←` / `h`, `tab` | Focus sidebar |
-| `1` `2` `3` `4` | Jump to Pull Requests, Repositories, Inbox, Settings |
+| `1` `2` `3` `4` | Jump to a page, in sidebar order |
+| `shift+j` `shift+k` | Settings: move the selected sidebar page down or up |
 | `r` | Refresh current page |
 | `e` | Inbox: mark done |
 | `t` | Inbox: unsubscribe (also marks done) |
@@ -129,5 +132,7 @@ npm run dev
 | `npm run lint` | Biome lint and format check |
 | `npm run format` | Biome safe fixes and formatting |
 | `npm test` | Vitest: unit tests, the GitHub client with stubbed responses, and the app rendered on demo data |
+
+`npm run screenshots` builds the app and remakes the images in `docs/screenshots/` from demo mode. It needs `python3` and Google Chrome. Set `CHROME_PATH` if Chrome is somewhere else.
 
 Claude Code hooks in `.claude/settings.json` run these for you. After each edit, the changed file is formatted and linted and the project is typechecked. When Claude finishes with uncommitted changes, `npm run check` runs, and failures go back to Claude.

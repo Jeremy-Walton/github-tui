@@ -154,13 +154,25 @@ describe('GitHub', () => {
 			});
 		}
 
-		it('groups PRs by section, showing each PR once and skipping Dependabot', async () => {
+		it('groups PRs by section, showing each PR once', async () => {
 			stubPRs();
 			const prs = await gh.pullRequests();
 			expect(prs.map(p => [p.section, p.id])).toEqual([
 				['Assigned to you', 'A1'],
 				['Review requested', 'R2'],
+				['Review requested', 'D3'],
 				['acme/web', 'W4'],
+			]);
+		});
+
+		it('flags bot PRs and PRs that only show up through a watched repo', async () => {
+			stubPRs();
+			const prs = await gh.pullRequests();
+			expect(prs.map(p => [p.id, p.bot, p.watched])).toEqual([
+				['A1', false, false],
+				['R2', false, false],
+				['D3', true, false],
+				['W4', false, true],
 			]);
 		});
 

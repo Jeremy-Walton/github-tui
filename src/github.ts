@@ -53,6 +53,9 @@ export type PullRequest = {
 	labels: string[];
 	headRef: string;
 	section: string;
+	bot: boolean;
+	// Found only through a watched repo, not through the viewer's own searches.
+	watched: boolean;
 };
 
 export type SubjectState = 'open' | 'draft' | 'merged' | 'closed' | 'completed' | 'not_planned';
@@ -233,15 +236,15 @@ export class GitHub {
 
 		const seen = new Set<string>();
 		const result: PullRequest[] = [];
-		const add = (raw: RawPR, section: string) => {
-			if (!raw?.id || seen.has(raw.id) || isBot(raw)) return;
+		const add = (raw: RawPR, section: string, watched: boolean) => {
+			if (!raw?.id || seen.has(raw.id)) return;
 			seen.add(raw.id);
-			result.push(toPullRequest(raw, section));
+			result.push(toPullRequest(raw, section, watched));
 		};
 
 		for (const [i, [section]] of searches.entries()) {
 			const nodes = [...(searchData[`s${i}`]?.nodes ?? [])].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-			for (const n of nodes) add(n, section);
+			for (const n of nodes) add(n, section, false);
 		}
 
 		const newest = (nodes: RawPR[]) => nodes[0]?.updatedAt ?? '';
@@ -250,7 +253,7 @@ export class GitHub {
 			.filter(nodes => nodes.length > 0)
 			.sort((a, b) => newest(b).localeCompare(newest(a)));
 
-		for (const n of byRepo.flat()) add(n, n.repository.nameWithOwner);
+		for (const n of byRepo.flat()) add(n, n.repository.nameWithOwner, true);
 		return result;
 	}
 
@@ -327,11 +330,9 @@ function subjectState(s: Subject): SubjectState {
 	return 'closed';
 }
 
-const IGNORED_AUTHORS = new Set(['dependabot', 'dependabot-preview']);
-
-function isBot(raw: RawPR): boolean {
-	return IGNORED_AUTHORS.has(raw.author?.login ?? '');
-}
+// Dependency-update bots only. Other bot accounts, like the Copilot coding agent, open PRs for
+// a person to review, so they aren't hidden with these.
+const BOT_AUTHORS = new Set(['dependabot', 'dependabot-preview', 'renovate']);
 
 const PR_FRAGMENT = `fragment pr on PullRequest {
 	id number title url isDraft updatedAt
@@ -364,7 +365,7 @@ type RawPR = {
 	commits: {nodes: {commit: {statusCheckRollup: {state: PullRequest['checks']} | null}}[]};
 };
 
-function toPullRequest(raw: RawPR, section: string): PullRequest {
+function toPullRequest(raw: RawPR, section: string, watched: boolean): PullRequest {
 	return {
 		id: raw.id,
 		number: raw.number,
@@ -383,6 +384,8 @@ function toPullRequest(raw: RawPR, section: string): PullRequest {
 		labels: raw.labels.nodes.map(l => l.name),
 		headRef: raw.headRefName,
 		section,
+		bot: BOT_AUTHORS.has(raw.author?.login ?? ''),
+		watched,
 	};
 }
 
