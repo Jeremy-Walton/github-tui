@@ -48,7 +48,6 @@ Install, keys, and the dev commands are in @README.md. Read it first.
 
 ## Known open items
 
-- **Possible screen overflow in tall terminals:** at 164×40, the frame may scroll past the header at startup or when a search leaves one result. It might be a test-harness artifact. A separate fix was in progress.
 - **Refactors considered and skipped:**
   - Replacing the global `runtime.demo` flag by passing the cache and link opener in.
   - Routing all key input through one owner. Today `App` and `ListView` both use `useInput` with matching guards.
