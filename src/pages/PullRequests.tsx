@@ -1,5 +1,5 @@
 import {Text} from 'ink';
-import {Cell, Line, ListView} from '../ListView.js';
+import {Cell, Line, ListView, Title} from '../ListView.js';
 import type {PullRequest} from '../github.js';
 import {openUrl, timeAgo, type Resource} from '../util.js';
 import type {PageProps} from './types.js';
@@ -8,13 +8,10 @@ export function PullRequestsPage({resource, ...props}: PageProps & {resource: Re
 	return (
 		<ListView
 			{...props}
-			items={resource.data ?? []}
-			loading={resource.loading}
-			error={resource.error}
-			itemHeight={2}
+			resource={resource}
 			emptyText="No open pull requests."
 			getKey={pr => pr.id}
-			getGroup={pr => pr.section}
+			getGroup={bySection}
 			getSearchText={pr => `${pr.repo} #${pr.number} ${pr.title} ${pr.author} ${pr.headRef} ${pr.labels.join(' ')}`}
 			onOpen={pr => openUrl(pr.url)}
 			renderItem={(pr, selected) => (
@@ -22,9 +19,7 @@ export function PullRequestsPage({resource, ...props}: PageProps & {resource: Re
 					<Line selected={selected}>
 						<Cell w={2}>{pr.isDraft ? <Text color="gray">◌</Text> : <Text color="green">●</Text>}</Cell>
 						<Cell grow>
-							<Text bold={selected} color={selected ? 'cyan' : undefined}>
-								{pr.title}
-							</Text>
+							<Title selected={selected}>{pr.title}</Title>
 							<Text dimColor> #{pr.number}</Text>
 						</Cell>
 					</Line>
@@ -58,6 +53,8 @@ export function PullRequestsPage({resource, ...props}: PageProps & {resource: Re
 		/>
 	);
 }
+
+const bySection = (pr: PullRequest) => pr.section;
 
 function Status({pr}: {pr: PullRequest}) {
 	if (pr.isDraft) return <Text color="gray">◌ draft</Text>;

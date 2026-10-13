@@ -41,7 +41,6 @@ export type PullRequest = {
 	repo: string;
 	author: string;
 	isDraft: boolean;
-	createdAt: string;
 	updatedAt: string;
 	reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null;
 	mergeable: 'MERGEABLE' | 'CONFLICTING' | 'UNKNOWN';
@@ -51,7 +50,6 @@ export type PullRequest = {
 	comments: number;
 	labels: string[];
 	headRef: string;
-	baseRef: string;
 	section: string;
 };
 
@@ -112,15 +110,33 @@ export class GitHub {
 		return items.concat(...rest);
 	}
 
-	async graphql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+	private async graphql<T>(query: string): Promise<T> {
 		const res = await this.request('/graphql', {
 			method: 'POST',
-			body: JSON.stringify({query, variables}),
+			body: JSON.stringify({query}),
 			headers: {'Content-Type': 'application/json'},
 		});
 		const json = (await res.json()) as {data: T; errors?: {message: string}[]};
 		if (json.errors?.length && !json.data) throw new Error(json.errors[0]!.message);
 		return json.data;
+	}
+
+	// One aliased `repository` field per name, sent in batches of `size`. `field(i)` gets the index into `names`.
+	// A failed batch yields nulls rather than failing the whole page.
+	private async batchRepoQuery<T>(names: string[], size: number, field: (i: number) => string, fragment = ''): Promise<(T | null)[]> {
+		const batches = await Promise.all(
+			chunk(names, size).map(async (batch, b) => {
+				const fields = batch.map((full, i) => {
+					const [owner, name] = full.split('/');
+					return `r${i}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { ${field(b * size + i)} }`;
+				});
+				const data = await this.graphql<Record<string, T | null>>(`query { ${fields.join('\n')} } ${fragment}`).catch(
+					(): Record<string, T | null> => ({}),
+				);
+				return batch.map((_, i) => data[`r${i}`] ?? null);
+			}),
+		);
+		return batches.flat();
 	}
 
 	async viewer(): Promise<Viewer> {
@@ -170,7 +186,7 @@ export class GitHub {
 			if (a.myLastActivity && b.myLastActivity) return b.myLastActivity.localeCompare(a.myLastActivity);
 			if (a.myLastActivity) return -1;
 			if (b.myLastActivity) return 1;
-			return (b.pushedAt ?? '').localeCompare(a.pushedAt ?? '');
+			return b.pushedAt.localeCompare(a.pushedAt);
 		});
 	}
 
@@ -185,9 +201,18 @@ export class GitHub {
 		}
 		${PR_FRAGMENT}`;
 
-		const [searchData, watched] = await Promise.all([
+		const watchedPRs = this.paginate<{full_name: string; archived: boolean}>('/user/subscriptions?per_page=100', 10).then(
+			watched =>
+				this.batchRepoQuery<{pullRequests: {nodes: RawPR[]}}>(
+					watched.filter(r => !r.archived).map(r => r.full_name),
+					4,
+					() => 'pullRequests(states: OPEN, first: 25, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ...pr } }',
+					PR_FRAGMENT,
+				),
+		);
+		const [searchData, repoResults] = await Promise.all([
 			this.graphql<Record<string, {nodes: RawPR[]}>>(searchQuery),
-			this.paginate<{full_name: string; archived: boolean}>('/user/subscriptions?per_page=100', 10),
+			watchedPRs,
 		]);
 
 		const seen = new Set<string>();
@@ -203,29 +228,7 @@ export class GitHub {
 			nodes.forEach(n => add(n, section));
 		});
 
-		const watchedRepos = watched.filter(r => !r.archived).map(r => r.full_name);
-		const chunks: string[][] = [];
-		for (let i = 0; i < watchedRepos.length; i += 4) chunks.push(watchedRepos.slice(i, i + 4));
-
-		const repoResults = await Promise.all(
-			chunks.map(chunk => {
-				const q = `query {
-					${chunk
-						.map((full, i) => {
-							const [owner, name] = full.split('/');
-							return `r${i}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) {
-								pullRequests(states: OPEN, first: 25, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ...pr } }
-							}`;
-						})
-						.join('\n')}
-				}
-				${PR_FRAGMENT}`;
-				return this.graphql<Record<string, {pullRequests: {nodes: RawPR[]}} | null>>(q).catch(() => ({}));
-			}),
-		);
-
 		const byRepo = repoResults
-			.flatMap(data => Object.values(data))
 			.map(r => r?.pullRequests.nodes ?? [])
 			.filter(nodes => nodes.length > 0)
 			.sort((a, b) => b[0]!.updatedAt.localeCompare(a[0]!.updatedAt));
@@ -263,32 +266,17 @@ export class GitHub {
 	// The notifications API doesn't say whether the PR/issue is open, merged, or closed, so look it up.
 	private async fillSubjectStates(items: Notification[]) {
 		const targets = items.filter(n => n.number !== null);
-		const chunks: Notification[][] = [];
-		for (let i = 0; i < targets.length; i += 25) chunks.push(targets.slice(i, i + 25));
-
-		await Promise.all(
-			chunks.map(async chunk => {
-				const q = `query {
-					${chunk
-						.map((n, i) => {
-							const [owner, name] = n.repo.split('/');
-							return `n${i}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) {
-								issueOrPullRequest(number: ${n.number}) {
-									... on PullRequest { state isDraft }
-									... on Issue { state stateReason }
-								}
-							}`;
-						})
-						.join('\n')}
-				}`;
-				type Subject = {state: string; isDraft?: boolean; stateReason?: string | null} | null;
-				const data = await this.graphql<Record<string, {issueOrPullRequest: Subject} | null>>(q).catch(() => ({}));
-				chunk.forEach((n, i) => {
-					const s = (data as Record<string, {issueOrPullRequest: Subject} | null>)[`n${i}`]?.issueOrPullRequest;
-					if (s) n.state = subjectState(s);
-				});
-			}),
+		const results = await this.batchRepoQuery<{issueOrPullRequest: Subject | null}>(
+			targets.map(n => n.repo),
+			25,
+			i => `issueOrPullRequest(number: ${targets[i]!.number}) {
+				... on PullRequest { state isDraft }
+				... on Issue { state stateReason }
+			}`,
 		);
+		results.forEach((r, i) => {
+			if (r?.issueOrPullRequest) targets[i]!.state = subjectState(r.issueOrPullRequest);
+		});
 	}
 
 	async markRead(threadId: string) {
@@ -300,12 +288,20 @@ export class GitHub {
 	}
 
 	async unsubscribe(threadId: string) {
-		await this.request(`/notifications/threads/${threadId}/subscription`, {method: 'DELETE'});
-		await this.markDone(threadId);
+		await Promise.all([
+			this.request(`/notifications/threads/${threadId}/subscription`, {method: 'DELETE'}),
+			this.markDone(threadId),
+		]);
 	}
 }
 
-function subjectState(s: {state: string; isDraft?: boolean; stateReason?: string | null}): SubjectState {
+function chunk<T>(items: T[], size: number): T[][] {
+	return Array.from({length: Math.ceil(items.length / size)}, (_, i) => items.slice(i * size, (i + 1) * size));
+}
+
+type Subject = {state: string; isDraft?: boolean; stateReason?: string | null};
+
+function subjectState(s: Subject): SubjectState {
 	if (s.state === 'MERGED') return 'merged';
 	if (s.state === 'OPEN') return s.isDraft ? 'draft' : 'open';
 	if (s.stateReason === 'NOT_PLANNED') return 'not_planned';
@@ -320,14 +316,14 @@ function isBot(raw: RawPR): boolean {
 }
 
 const PR_FRAGMENT = `fragment pr on PullRequest {
-	id number title url isDraft createdAt updatedAt
+	id number title url isDraft updatedAt
 	author { login }
 	repository { nameWithOwner }
 	reviewDecision mergeable
 	additions deletions
 	comments { totalCount }
 	labels(first: 5) { nodes { name } }
-	headRefName baseRefName
+	headRefName
 	commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
 }`;
 
@@ -337,7 +333,6 @@ type RawPR = {
 	title: string;
 	url: string;
 	isDraft: boolean;
-	createdAt: string;
 	updatedAt: string;
 	author: {login: string} | null;
 	repository: {nameWithOwner: string};
@@ -348,7 +343,6 @@ type RawPR = {
 	comments: {totalCount: number};
 	labels: {nodes: {name: string}[]};
 	headRefName: string;
-	baseRefName: string;
 	commits: {nodes: {commit: {statusCheckRollup: {state: PullRequest['checks']} | null}}[]};
 };
 
@@ -361,7 +355,6 @@ function toPullRequest(raw: RawPR, section: string): PullRequest {
 		repo: raw.repository.nameWithOwner,
 		author: raw.author?.login ?? 'ghost',
 		isDraft: raw.isDraft,
-		createdAt: raw.createdAt,
 		updatedAt: raw.updatedAt,
 		reviewDecision: raw.reviewDecision,
 		mergeable: raw.mergeable,
@@ -371,7 +364,6 @@ function toPullRequest(raw: RawPR, section: string): PullRequest {
 		comments: raw.comments.totalCount,
 		labels: raw.labels.nodes.map(l => l.name),
 		headRef: raw.headRefName,
-		baseRef: raw.baseRefName,
 		section,
 	};
 }

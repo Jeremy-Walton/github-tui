@@ -45,10 +45,12 @@ async function readCache<T>(key: string): Promise<T | null> {
 	}
 }
 
+let cacheDirReady: Promise<unknown> | undefined;
+
 async function writeCache(key: string, data: unknown) {
 	if (runtime.demo) return;
 	try {
-		await mkdir(CACHE_DIR, {recursive: true});
+		await (cacheDirReady ??= mkdir(CACHE_DIR, {recursive: true}));
 		await writeFile(join(CACHE_DIR, `${key}.json`), JSON.stringify(data));
 	} catch {
 		// Cache is best-effort; a failed write only costs a slower next startup.
@@ -64,52 +66,44 @@ export type Resource<T> = {
 };
 
 // Shows the last cached result instantly, then replaces it with fresh data once `wait` is false.
-export function useResource<T>(key: string | null, load: () => Promise<T>, {wait = false} = {}): Resource<T> {
+export function useResource<T>(key: string, load: () => Promise<T>, {wait = false} = {}): Resource<T> {
 	const [data, setData] = useState<T | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const loadRef = useRef(load);
 	loadRef.current = load;
 	const run = useRef(0);
+	const cached = useRef<T | null>(null);
 
 	const refresh = useCallback(() => {
-		if (!key) return;
 		const id = ++run.current;
 		setLoading(true);
 		setError(null);
 		loadRef
 			.current()
-			.then(fresh => {
-				if (id !== run.current) return;
-				setData(fresh);
-				void writeCache(key, fresh);
-			})
+			.then(fresh => id === run.current && setData(fresh))
 			.catch((e: Error) => id === run.current && setError(e.message))
 			.finally(() => id === run.current && setLoading(false));
-	}, [key]);
+	}, []);
 
 	useEffect(() => {
-		if (!key) return;
-		void readCache<T>(key).then(cached => {
-			if (cached) setData(prev => prev ?? cached);
+		void readCache<T>(key).then(fromDisk => {
+			if (!fromDisk) return;
+			cached.current = fromDisk;
+			setData(prev => prev ?? fromDisk);
 		});
 	}, [key]);
+
+	// Every fetch or local update is written back, except data that was just read from the cache.
+	useEffect(() => {
+		if (data !== null && data !== cached.current) void writeCache(key, data);
+	}, [key, data]);
 
 	useEffect(() => {
 		if (!wait) refresh();
 	}, [wait, refresh]);
 
-	const update = useCallback(
-		(fn: (data: T) => T) => {
-			setData(prev => {
-				if (prev === null) return prev;
-				const next = fn(prev);
-				if (key) void writeCache(key, next);
-				return next;
-			});
-		},
-		[key],
-	);
+	const update = useCallback((fn: (data: T) => T) => setData(prev => (prev === null ? prev : fn(prev))), []);
 
 	return {data, loading, error, refresh, update};
 }

@@ -1,20 +1,19 @@
 import {Box, Text, useInput} from 'ink';
-import {useEffect, useMemo, useRef, useState, type ReactNode} from 'react';
-import {matches} from './util.js';
+import {useMemo, useRef, useState, type ReactNode} from 'react';
+import {matches, type Resource} from './util.js';
 
 type Props<T> = {
-	items: T[];
+	resource: Resource<T[]>;
+	// Overrides `resource.data`, e.g. to hide items with a pending action.
+	items?: T[];
 	getKey: (item: T) => string;
 	getSearchText: (item: T) => string;
 	getGroup?: (item: T) => string;
 	renderItem: (item: T, selected: boolean) => ReactNode;
-	itemHeight: number;
 	height: number;
 	query: string;
 	searching: boolean;
 	active: boolean;
-	loading: boolean;
-	error: string | null;
 	emptyText: string;
 	onOpen: (item: T) => void;
 	onAction?: (input: string, item: T) => void;
@@ -23,19 +22,27 @@ type Props<T> = {
 type Row<T> = {kind: 'header'; label: string; count: number; spaced: boolean} | {kind: 'item'; item: T; index: number};
 
 const SEARCH_BOX_HEIGHT = 3;
+const ITEM_HEIGHT = 2;
 const SELECTED_BG = '#2b3d5a';
 
 export function ListView<T>(props: Props<T>) {
-	const {items, getGroup, itemHeight, height, query, searching, active} = props;
+	const {resource, getGroup, height, query, searching, active} = props;
+	const items = props.items ?? resource.data ?? [];
 	const [selected, setSelected] = useState(0);
+	const [selectedQuery, setSelectedQuery] = useState(query);
 	const scrollTop = useRef(0);
+
+	// A new query starts at the top. Adjusting during render avoids a second render per keystroke.
+	if (query !== selectedQuery) {
+		setSelectedQuery(query);
+		setSelected(0);
+	}
 
 	const filtered = useMemo(
 		() => (query ? items.filter(item => matches(props.getSearchText(item), query)) : items),
 		[items, query],
 	);
 
-	useEffect(() => setSelected(0), [query]);
 	const sel = Math.min(selected, Math.max(0, filtered.length - 1));
 
 	const rows = useMemo(() => {
@@ -56,7 +63,7 @@ export function ListView<T>(props: Props<T>) {
 
 	// Each item gets one extra line for its divider. Headers get a blank line below them,
 	// plus one above when they follow another group.
-	const slotHeight = itemHeight + 1;
+	const slotHeight = ITEM_HEIGHT + 1;
 	const rowHeight = (row: Row<T>) => (row.kind === 'header' ? (row.spaced ? 3 : 2) : slotHeight);
 	const listHeight = Math.max(1, height - SEARCH_BOX_HEIGHT - 1);
 
@@ -120,18 +127,18 @@ export function ListView<T>(props: Props<T>) {
 				)}
 				<Box flexGrow={1} />
 				<Text dimColor>
-					{props.loading ? 'loading… ' : ''}
+					{resource.loading ? 'loading… ' : ''}
 					{filtered.length === items.length ? items.length : `${filtered.length}/${items.length}`}
 				</Text>
 			</Box>
-			{props.error ? (
+			{resource.error ? (
 				<Text color="red" wrap="truncate-end">
-					{props.error}
+					{resource.error}
 				</Text>
 			) : null}
 			<Box flexDirection="column" paddingX={1} flexGrow={1}>
 				{filtered.length === 0 ? (
-					<Text dimColor>{props.loading && items.length === 0 ? 'Loading…' : query ? 'No matches.' : props.emptyText}</Text>
+					<Text dimColor>{resource.loading && items.length === 0 ? 'Loading…' : query ? 'No matches.' : props.emptyText}</Text>
 				) : (
 					visible.map(row =>
 						row.kind === 'header' ? (
@@ -144,7 +151,7 @@ export function ListView<T>(props: Props<T>) {
 							<Box key={props.getKey(row.item)} flexDirection="column" height={slotHeight}>
 								<Box
 									flexDirection="column"
-									height={itemHeight}
+									height={ITEM_HEIGHT}
 									backgroundColor={row.index === sel ? SELECTED_BG : undefined}
 								>
 									{props.renderItem(row.item, row.index === sel)}
@@ -191,5 +198,14 @@ export function Cell({w, grow, children}: {w?: number; grow?: boolean; children?
 		>
 			<Text wrap="truncate-end">{children}</Text>
 		</Box>
+	);
+}
+
+// An item's main text: bold when selected or unread, dimmed once read.
+export function Title({selected, unread, children}: {selected: boolean; unread?: boolean; children: ReactNode}) {
+	return (
+		<Text bold={selected || unread} color={selected ? 'cyan' : undefined} dimColor={unread === false && !selected}>
+			{children}
+		</Text>
 	);
 }

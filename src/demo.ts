@@ -16,7 +16,6 @@ function pr(p: PRInput & {age: number}): PullRequest {
 		id: `${p.repo}#${p.number}`,
 		url,
 		isDraft: false,
-		createdAt: ago(p.age * 3),
 		updatedAt: ago(p.age),
 		reviewDecision: 'REVIEW_REQUIRED',
 		mergeable: 'MERGEABLE',
@@ -26,7 +25,6 @@ function pr(p: PRInput & {age: number}): PullRequest {
 		comments: 0,
 		labels: [],
 		headRef: 'feature',
-		baseRef: 'main',
 		...p,
 	};
 }

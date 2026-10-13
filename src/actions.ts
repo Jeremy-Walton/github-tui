@@ -1,47 +1,68 @@
-type Pending = {
+type Action = {
 	id: string;
 	label: string;
-	timer: NodeJS.Timeout;
 	run: () => Promise<void>;
-	restore: () => void;
+	onDone: () => void;
 	onFail: (error: Error) => void;
 };
 
+type Pending = Action & {timer: NodeJS.Timeout; sent: boolean};
+
 // GitHub can't un-mark a notification as done, so actions wait here for a grace
-// period before they're sent. Undo just cancels the most recent pending action.
+// period before they're sent. Undo just cancels the most recent unsent action.
+// Subscribable so the UI can hide pending items without changing the underlying data.
 export class ActionQueue {
 	private pending: Pending[] = [];
+	private ids: ReadonlySet<string> = new Set();
+	private listeners = new Set<() => void>();
 
 	constructor(private delayMs = 15_000) {}
 
-	has(id: string): boolean {
-		return this.pending.some(p => p.id === id);
-	}
+	subscribe = (listener: () => void) => {
+		this.listeners.add(listener);
+		return () => this.listeners.delete(listener);
+	};
 
-	add(action: Omit<Pending, 'timer'>) {
-		const p: Pending = {...action, timer: setTimeout(() => this.commit(p), this.delayMs)};
+	pendingIds = (): ReadonlySet<string> => this.ids;
+
+	add(action: Action) {
+		const p: Pending = {...action, sent: false, timer: setTimeout(() => void this.commit(p), this.delayMs)};
 		this.pending.push(p);
+		this.changed();
 	}
 
 	undo(): string | null {
-		const p = this.pending.pop();
+		const p = this.pending.findLast(x => !x.sent);
 		if (!p) return null;
 		clearTimeout(p.timer);
-		p.restore();
+		this.remove(p);
 		return p.label;
 	}
 
 	async flush() {
-		const all = this.pending.splice(0);
-		all.forEach(p => clearTimeout(p.timer));
-		await Promise.allSettled(all.map(p => p.run()));
+		await Promise.all(this.pending.filter(p => !p.sent).map(p => this.commit(p)));
 	}
 
-	private commit(p: Pending) {
+	private async commit(p: Pending) {
+		clearTimeout(p.timer);
+		p.sent = true;
+		try {
+			await p.run();
+			p.onDone();
+		} catch (e) {
+			p.onFail(e as Error);
+		} finally {
+			this.remove(p);
+		}
+	}
+
+	private remove(p: Pending) {
 		this.pending = this.pending.filter(x => x !== p);
-		p.run().catch((e: Error) => {
-			p.restore();
-			p.onFail(e);
-		});
+		this.changed();
+	}
+
+	private changed() {
+		this.ids = new Set(this.pending.map(p => p.id));
+		this.listeners.forEach(l => l());
 	}
 }

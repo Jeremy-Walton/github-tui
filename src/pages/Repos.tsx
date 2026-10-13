@@ -1,5 +1,5 @@
 import {Text} from 'ink';
-import {Cell, Line, ListView} from '../ListView.js';
+import {Cell, Line, ListView, Title} from '../ListView.js';
 import type {Repo} from '../github.js';
 import {openUrl, timeAgo, type Resource} from '../util.js';
 import type {PageProps} from './types.js';
@@ -8,10 +8,7 @@ export function ReposPage({resource, ...props}: PageProps & {resource: Resource<
 	return (
 		<ListView
 			{...props}
-			items={resource.data ?? []}
-			loading={resource.loading}
-			error={resource.error}
-			itemHeight={2}
+			resource={resource}
 			emptyText="No repositories."
 			getKey={r => r.fullName}
 			getSearchText={r => `${r.fullName} ${r.description ?? ''}`}
@@ -20,9 +17,7 @@ export function ReposPage({resource, ...props}: PageProps & {resource: Resource<
 				<>
 					<Line selected={selected}>
 						<Cell grow>
-							<Text bold={selected} color={selected ? 'cyan' : undefined}>
-								{r.fullName}
-							</Text>
+							<Title selected={selected}>{r.fullName}</Title>
 						</Cell>
 						<Cell w={10}>
 							{r.isArchived ? (

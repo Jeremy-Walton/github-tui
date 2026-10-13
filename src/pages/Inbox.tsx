@@ -1,22 +1,25 @@
 import {Text} from 'ink';
-import {Cell, Line, ListView} from '../ListView.js';
+import {useMemo, useSyncExternalStore} from 'react';
+import {Cell, Line, ListView, Title} from '../ListView.js';
 import type {ActionQueue} from '../actions.js';
 import type {GitHubClient, Notification} from '../github.js';
 import {openUrl, timeAgo, type Resource} from '../util.js';
 import type {PageProps} from './types.js';
 
+export const INBOX_HINTS = 'e done · t unsubscribe · u undo';
+
 type Props = PageProps & {resource: Resource<Notification[]>; gh: GitHubClient; actions: ActionQueue};
 
 export function InboxPage({resource, gh, actions, ...props}: Props) {
+	const pending = useSyncExternalStore(actions.subscribe, actions.pendingIds);
+	const items = useMemo(() => resource.data?.filter(n => !pending.has(n.id)) ?? [], [resource.data, pending]);
+
 	const remove = (n: Notification, run: () => Promise<void>, verb: string) => {
-		const index = resource.data?.findIndex(x => x.id === n.id) ?? 0;
-		resource.update(list => list.filter(x => x.id !== n.id));
 		actions.add({
 			id: n.id,
 			label: `${verb}: ${n.title}`,
 			run,
-			restore: () =>
-				resource.update(list => (list.some(x => x.id === n.id) ? list : list.toSpliced(index, 0, n))),
+			onDone: () => resource.update(list => list.filter(x => x.id !== n.id)),
 			onFail: e => props.onMessage(`Failed (${verb}): ${e.message}`),
 		});
 		props.onMessage(`${verb}: ${n.title} · u to undo`);
@@ -25,10 +28,8 @@ export function InboxPage({resource, gh, actions, ...props}: Props) {
 	return (
 		<ListView
 			{...props}
-			items={(resource.data ?? []).filter(n => !actions.has(n.id))}
-			loading={resource.loading}
-			error={resource.error}
-			itemHeight={2}
+			resource={resource}
+			items={items}
 			emptyText="Inbox zero."
 			getKey={n => n.id}
 			getSearchText={n => `${n.repo} #${n.number ?? ''} ${n.title} ${n.reason} ${n.type} ${n.state ?? ''}`}
@@ -60,9 +61,9 @@ export function InboxPage({resource, gh, actions, ...props}: Props) {
 								<Text color={color}>{label}</Text>
 							</Cell>
 							<Cell grow>
-								<Text bold={n.unread || selected} color={selected ? 'cyan' : undefined} dimColor={!n.unread && !selected}>
+								<Title selected={selected} unread={n.unread}>
 									{n.title}
-								</Text>
+								</Title>
 							</Cell>
 							<Cell w={18}>
 								<Text dimColor>{n.reason.replace(/_/g, ' ')}</Text>

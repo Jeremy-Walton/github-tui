@@ -1,25 +1,32 @@
 import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
-import {useEffect, useState} from 'react';
+import {useEffect, useState, type ReactNode} from 'react';
 import type {ActionQueue} from './actions.js';
 import type {GitHubClient, Viewer} from './github.js';
-import {InboxPage} from './pages/Inbox.js';
+import {INBOX_HINTS, InboxPage} from './pages/Inbox.js';
 import {PullRequestsPage} from './pages/PullRequests.js';
 import {ReposPage} from './pages/Repos.js';
-import {useResource} from './util.js';
+import type {PageProps} from './pages/types.js';
+import {useResource, type Resource} from './util.js';
 
-const PAGES = ['Pull Requests', 'Repositories', 'Inbox'] as const;
-const INBOX = 2;
 const SIDEBAR_WIDTH = 24;
+const NO_SEARCH: Search = {query: '', searching: false};
 
 type Focus = 'sidebar' | 'main';
 type Search = {query: string; searching: boolean};
+type Page = {
+	name: string;
+	resource: Pick<Resource<unknown>, 'loading' | 'refresh'>;
+	count: number | undefined;
+	hints?: string;
+	render: (props: PageProps) => ReactNode;
+};
 
 export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; actions: ActionQueue}) {
 	const {exit} = useApp();
 	const {columns, rows} = useWindowSize();
 	const [page, setPage] = useState(0);
 	const [focus, setFocus] = useState<Focus>('main');
-	const [searches, setSearches] = useState<Search[]>(PAGES.map(() => ({query: '', searching: false})));
+	const [searches, setSearches] = useState<Record<number, Search>>({});
 	const [message, setMessage] = useState('');
 
 	const prs = useResource(`${viewer.login}-prs`, () => gh.pullRequests());
@@ -30,7 +37,29 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 	}, [prs.loading]);
 	const repos = useResource(`${viewer.login}-repos`, () => gh.repos(viewer.login), {wait: othersWait});
 	const inbox = useResource(`${viewer.login}-inbox`, () => gh.notifications(), {wait: othersWait});
-	const resources = [prs, repos, inbox];
+
+	const pages: Page[] = [
+		{
+			name: 'Pull Requests',
+			resource: prs,
+			count: prs.data?.length,
+			render: p => <PullRequestsPage resource={prs} {...p} />,
+		},
+		{
+			name: 'Repositories',
+			resource: repos,
+			count: repos.data?.length,
+			render: p => <ReposPage resource={repos} {...p} />,
+		},
+		{
+			name: 'Inbox',
+			resource: inbox,
+			count: inbox.data?.filter(n => n.unread).length,
+			hints: INBOX_HINTS,
+			render: p => <InboxPage resource={inbox} gh={gh} actions={actions} {...p} />,
+		},
+	];
+	const current = pages[page]!;
 
 	useEffect(() => {
 		if (!message) return;
@@ -38,9 +67,8 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 		return () => clearTimeout(t);
 	}, [message]);
 
-	const search = searches[page]!;
-	const setSearch = (patch: Partial<Search>) =>
-		setSearches(all => all.map((s, i) => (i === page ? {...s, ...patch} : s)));
+	const search = searches[page] ?? NO_SEARCH;
+	const setSearch = (patch: Partial<Search>) => setSearches(all => ({...all, [page]: {...search, ...patch}}));
 
 	useInput((input, key) => {
 		if (search.searching) {
@@ -58,13 +86,14 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 			setFocus('main');
 			return setSearch({searching: true});
 		}
-		if (['1', '2', '3'].includes(input)) {
-			setPage(Number(input) - 1);
+		const n = Number(input);
+		if (n >= 1 && n <= pages.length) {
+			setPage(n - 1);
 			return setFocus('main');
 		}
 		if (input === 'r') {
-			resources[page]!.refresh();
-			return setMessage(`Refreshing ${PAGES[page]}…`);
+			current.resource.refresh();
+			return setMessage(`Refreshing ${current.name}…`);
 		}
 		if (key.escape && search.query) return setSearch({query: ''});
 		if (key.tab) return setFocus(f => (f === 'sidebar' ? 'main' : 'sidebar'));
@@ -72,18 +101,13 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 		if (focus === 'sidebar') {
 			if (key.rightArrow || input === 'l' || key.return) return setFocus('main');
 			if (key.upArrow || input === 'k') return setPage(p => Math.max(0, p - 1));
-			if (key.downArrow || input === 'j') return setPage(p => Math.min(PAGES.length - 1, p + 1));
+			if (key.downArrow || input === 'j') return setPage(p => Math.min(pages.length - 1, p + 1));
 		}
 	});
 
-	const counts = [
-		prs.data?.length,
-		repos.data?.length,
-		inbox.data ? inbox.data.filter(n => n.unread).length : undefined,
-	];
 	const bodyHeight = rows - 2;
 	const mainHeight = bodyHeight - 2;
-	const pageProps = {
+	const pageProps: PageProps = {
 		height: mainHeight,
 		query: search.query,
 		searching: search.searching,
@@ -101,7 +125,7 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 				<Text bold>@{viewer.login}</Text>
 				{viewer.name ? <Text dimColor> ({viewer.name})</Text> : null}
 				<Box flexGrow={1} />
-				{resources.some(r => r.loading) ? <Text dimColor>syncing…</Text> : null}
+				{pages.some(p => p.resource.loading) ? <Text dimColor>syncing…</Text> : null}
 			</Box>
 			<Box height={bodyHeight}>
 				<Box
@@ -112,18 +136,16 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 					borderColor={focus === 'sidebar' ? 'cyan' : 'gray'}
 					paddingX={1}
 				>
-					{PAGES.map((name, i) => (
+					{pages.map(({name, count}, i) => (
 						<Text key={name} wrap="truncate-end" inverse={i === page && focus === 'sidebar'} color={i === page ? 'cyan' : undefined}>
 							{i === page ? '› ' : '  '}
 							{name}
-							{counts[i] !== undefined ? <Text dimColor> {counts[i]}</Text> : null}
+							{count !== undefined ? <Text dimColor> {count}</Text> : null}
 						</Text>
 					))}
 				</Box>
 				<Box flexDirection="column" flexGrow={1} borderStyle="round" borderColor={focus === 'main' ? 'cyan' : 'gray'}>
-					{page === 0 ? <PullRequestsPage resource={prs} {...pageProps} /> : null}
-					{page === 1 ? <ReposPage resource={repos} {...pageProps} /> : null}
-					{page === INBOX ? <InboxPage resource={inbox} gh={gh} actions={actions} {...pageProps} /> : null}
+					{current.render(pageProps)}
 				</Box>
 			</Box>
 			<Box paddingX={1}>
@@ -132,16 +154,17 @@ export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; ac
 						{message}
 					</Text>
 				) : (
-					<Text dimColor wrap="truncate-end">{hints(page, focus, search.searching)}</Text>
+					<Text dimColor wrap="truncate-end">{hints(current, pages.length, focus, search.searching)}</Text>
 				)}
 			</Box>
 		</Box>
 	);
 }
 
-function hints(page: number, focus: Focus, searching: boolean): string {
+function hints(page: Page, pageCount: number, focus: Focus, searching: boolean): string {
 	if (searching) return 'type to filter · ↑↓ move · enter open · esc done · ctrl+u clear';
-	if (focus === 'sidebar') return '↑↓ switch page · → / enter go to list · / search · 1-3 jump · q quit';
-	const base = '↑↓ move · enter open · / search · ← sidebar · 1-3 jump · r refresh · q quit';
-	return page === INBOX ? `e done · t unsubscribe · u undo · ${base}` : base;
+	const jump = `1-${pageCount} jump`;
+	if (focus === 'sidebar') return `↑↓ switch page · → / enter go to list · / search · ${jump} · q quit`;
+	const base = `↑↓ move · enter open · / search · ← sidebar · ${jump} · r refresh · q quit`;
+	return page.hints ? `${page.hints} · ${base}` : base;
 }
