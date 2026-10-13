@@ -95,6 +95,9 @@ describe('App (demo data)', () => {
 		expect(frame).toContain('Sidebar order');
 		expect(frame).toContain('Terminal');
 		expect(frame.split('\n').length).toBeLessThanOrEqual(ROWS);
+
+		await app.press('/', 'l', 'u', 'm', 'o', 'n');
+		expect(app.frame()).toContain('Lumon');
 	});
 
 	it('switches theme with enter', async () => {

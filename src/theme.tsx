@@ -148,6 +148,26 @@ export const THEMES: Theme[] = [
 		done: '#bb9af7',
 		neutral: '#565f89',
 	},
+	// From github.com/OldJobobo/omarchy-lumon-theme. The palette is all blues, so the status
+	// colors are steps on its blue ramp and the icons (✓ ✗ ±) carry the meaning.
+	{
+		id: 'lumon',
+		name: 'Lumon',
+		background: '#1b2d40',
+		text: '#d6e2ee',
+		muted: '#829bac',
+		accent: '#6fb8e3',
+		border: '#4a6b80',
+		divider: '#273c50',
+		selection: '#2b475f',
+		group: '#b4e4f6',
+		link: '#8bc9eb',
+		success: '#86b7d8',
+		warning: '#9dcae5',
+		danger: '#f2fcff',
+		done: '#b1d8ee',
+		neutral: '#4a6b80',
+	},
 	{
 		id: 'github-light',
 		name: 'GitHub Light',
