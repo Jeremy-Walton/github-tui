@@ -4,7 +4,11 @@ import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {useCallback, useEffect, useRef, useState} from 'react';
 
+// Demo mode uses fake data, so it must not open links or touch the real cache.
+export const runtime = {demo: false};
+
 export function openUrl(url: string) {
+	if (runtime.demo) return;
 	const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer' : 'xdg-open';
 	spawn(cmd, [url], {detached: true, stdio: 'ignore'}).unref();
 }
@@ -33,6 +37,7 @@ export function matches(text: string, query: string): boolean {
 const CACHE_DIR = join(process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache'), 'github-tui');
 
 async function readCache<T>(key: string): Promise<T | null> {
+	if (runtime.demo) return null;
 	try {
 		return JSON.parse(await readFile(join(CACHE_DIR, `${key}.json`), 'utf8')) as T;
 	} catch {
@@ -41,6 +46,7 @@ async function readCache<T>(key: string): Promise<T | null> {
 }
 
 async function writeCache(key: string, data: unknown) {
+	if (runtime.demo) return;
 	try {
 		await mkdir(CACHE_DIR, {recursive: true});
 		await writeFile(join(CACHE_DIR, `${key}.json`), JSON.stringify(data));

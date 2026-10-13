@@ -37,7 +37,7 @@ export function ReposPage({resource, ...props}: PageProps & {resource: Resource<
 						<Cell w={13}>
 							<Text dimColor>{r.language ?? ''}</Text>
 						</Cell>
-						<Cell w={7}>{r.stars ? <Text dimColor>★ {r.stars}</Text> : null}</Cell>
+						<Cell w={8}>{r.stars ? <Text dimColor>★ {r.stars}</Text> : null}</Cell>
 						<Cell w={18}>
 							{r.myLastActivity ? (
 								<Text color="green">you {timeAgo(r.myLastActivity)}</Text>

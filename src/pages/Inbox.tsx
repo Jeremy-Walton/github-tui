@@ -1,11 +1,11 @@
 import {Text} from 'ink';
 import {Cell, Line, ListView} from '../ListView.js';
 import type {ActionQueue} from '../actions.js';
-import type {GitHub, Notification} from '../github.js';
+import type {GitHubClient, Notification} from '../github.js';
 import {openUrl, timeAgo, type Resource} from '../util.js';
 import type {PageProps} from './types.js';
 
-type Props = PageProps & {resource: Resource<Notification[]>; gh: GitHub; actions: ActionQueue};
+type Props = PageProps & {resource: Resource<Notification[]>; gh: GitHubClient; actions: ActionQueue};
 
 export function InboxPage({resource, gh, actions, ...props}: Props) {
 	const remove = (n: Notification, run: () => Promise<void>, verb: string) => {

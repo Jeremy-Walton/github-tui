@@ -1,7 +1,7 @@
 import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
 import {useEffect, useState} from 'react';
 import type {ActionQueue} from './actions.js';
-import type {GitHub, Viewer} from './github.js';
+import type {GitHubClient, Viewer} from './github.js';
 import {InboxPage} from './pages/Inbox.js';
 import {PullRequestsPage} from './pages/PullRequests.js';
 import {ReposPage} from './pages/Repos.js';
@@ -14,7 +14,7 @@ const SIDEBAR_WIDTH = 24;
 type Focus = 'sidebar' | 'main';
 type Search = {query: string; searching: boolean};
 
-export function App({gh, viewer, actions}: {gh: GitHub; viewer: Viewer; actions: ActionQueue}) {
+export function App({gh, viewer, actions}: {gh: GitHubClient; viewer: Viewer; actions: ActionQueue}) {
 	const {exit} = useApp();
 	const {columns, rows} = useWindowSize();
 	const [page, setPage] = useState(0);

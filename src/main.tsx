@@ -1,10 +1,13 @@
 import {render} from 'ink';
 import {App} from './App.js';
 import {ActionQueue} from './actions.js';
-import {GitHub, getToken} from './github.js';
+import {DemoGitHub} from './demo.js';
+import {GitHub, getToken, type GitHubClient} from './github.js';
+import {runtime} from './util.js';
 
 try {
-	const gh = new GitHub(await getToken());
+	runtime.demo = process.argv.includes('--demo');
+	const gh: GitHubClient = runtime.demo ? new DemoGitHub() : new GitHub(await getToken());
 	const viewer = await gh.viewer();
 	const actions = new ActionQueue();
 	const app = render(<App gh={gh} viewer={viewer} actions={actions} />, {alternateScreen: true});

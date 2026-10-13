@@ -4,6 +4,20 @@ A terminal UI for your GitHub pull requests, repos, and notifications. Run `gith
 
 There is nothing to configure. The app uses your `gh` login and never stores a token: it asks `gh auth token` each time it starts. Data is cached in `~/.cache/github-tui` so the app opens instantly, then refreshes.
 
+**Pull requests** you're assigned, asked to review, or wrote, then open PRs in repos you watch. Status, checks, conflicts, and size line up in columns.
+
+![Pull requests page](docs/screenshots/pull-requests.png)
+
+**Inbox** mirrors your GitHub notifications, with whether each PR or issue is open, merged, or closed. Mark done (`e`), unsubscribe (`t`), or undo (`u`) from the keyboard.
+
+![Inbox page](docs/screenshots/inbox.png)
+
+**Repositories** you can access, sorted by your own recent activity. Press `/` to search on any page.
+
+![Repositories page with a search](docs/screenshots/repositories.png)
+
+> Screenshots use made-up data. Run `github --demo` to try the UI without touching your account.
+
 ## Install
 
 ### 1. Install the requirements
@@ -103,5 +117,7 @@ Then delete the cloned `github-tui` folder.
 npm install
 npm run dev
 ```
+
+`npm run dev -- --demo` runs on made-up data from `src/demo.ts`. Demo mode makes no GitHub calls, doesn't open links, and doesn't read or write the cache.
 
 `npm run build` checks for GitHub tokens in the source before it compiles.

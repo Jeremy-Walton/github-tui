@@ -70,6 +70,11 @@ export type Notification = {
 	updatedAt: string;
 };
 
+export type GitHubClient = Pick<
+	GitHub,
+	'viewer' | 'repos' | 'pullRequests' | 'notifications' | 'markRead' | 'markDone' | 'unsubscribe'
+>;
+
 export class GitHub {
 	constructor(private token: string) {}
 
