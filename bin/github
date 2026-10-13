@@ -1,0 +1,3 @@
+#!/bin/sh
+# Pin to the global nodenv version so a project's .node-version can't hide or break the command.
+exec env NODENV_VERSION="$(nodenv global)" nodenv exec node "$(dirname "$(realpath "$0")")/../dist/cli.js" "$@"
