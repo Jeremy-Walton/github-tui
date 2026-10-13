@@ -10,8 +10,11 @@ export async function getToken(): Promise<string> {
 		const {GITHUB_TOKEN, GH_TOKEN, ...env} = process.env;
 		const {stdout} = await exec('gh', ['auth', 'token', '--hostname', 'github.com'], {env});
 		return stdout.trim();
-	} catch {
-		throw new Error('Not logged in. Run `gh auth login` first.');
+	} catch (e) {
+		if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+			throw new Error('The GitHub CLI is not installed. Install it from https://cli.github.com, then run `gh auth login`.');
+		}
+		throw new Error('Not logged in to GitHub. Run `gh auth login` first.');
 	}
 }
 

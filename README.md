@@ -1,18 +1,23 @@
 # github-tui
 
-A terminal UI for your GitHub repos, pull requests, and notifications. Run `github`.
+A terminal UI for your GitHub pull requests, repos, and notifications. Run `github`.
 
-Uses your `gh` login (`gh auth token`). Data is cached in `~/.cache/github-tui` so it opens instantly, then refreshes.
+There is nothing to configure. The app uses your `gh` login and never stores a token: it asks `gh auth token` each time it starts. Data is cached in `~/.cache/github-tui` so the app opens instantly, then refreshes.
 
-## Setup
+## Requirements
+
+- Node 22 or newer
+- [GitHub CLI](https://cli.github.com), logged in with `gh auth login`
+
+## Install
 
 ```bash
-npm install
-npm run build
-ln -sf "$PWD/bin/github" ~/.local/bin/github
+git clone <this repo> github-tui
+cd github-tui
+bin/install
 ```
 
-`bin/github` runs with your global nodenv version, so it works in any project folder.
+`bin/install` builds the app and links `github` into `~/.local/bin`. With nodenv, the command runs on your global Node version, so it works in any project folder.
 
 ## Keys
 

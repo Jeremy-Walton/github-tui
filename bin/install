@@ -1,0 +1,19 @@
+#!/bin/sh
+# Builds the app and puts a `github` command on your PATH.
+set -e
+cd "$(dirname "$(realpath "$0")")/.."
+npm install
+mkdir -p "$HOME/.local/bin"
+ln -sf "$PWD/bin/github" "$HOME/.local/bin/github"
+echo "Installed: $HOME/.local/bin/github"
+
+case ":$PATH:" in
+*":$HOME/.local/bin:"*) ;;
+*) echo "Add this to your shell profile, then open a new terminal:" && echo '  export PATH="$HOME/.local/bin:$PATH"' ;;
+esac
+
+if ! command -v gh >/dev/null 2>&1; then
+	echo "Install the GitHub CLI (https://cli.github.com), then run: gh auth login"
+elif ! gh auth status --hostname github.com >/dev/null 2>&1; then
+	echo "Log in to GitHub with: gh auth login"
+fi
