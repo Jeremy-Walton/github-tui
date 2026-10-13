@@ -6,6 +6,7 @@ Install, keys, and the dev commands are in @README.md. Read it first.
 
 ## Verify every change
 
+- **Tests first.** Before you change `src/`, write or update the tests in `test/` that describe the new behavior. Run them and see them fail. Then write the code until they pass. The failing tests define when the work is done. UI behavior is tested through `test/render.ts` with demo data.
 - `npm run check` must pass. It runs the secret scan, typecheck, lint, and tests. CI runs the same steps (@.github/workflows/check.yml).
 - Hooks in @.claude/settings.json run automatically. After each edit, the edited file is formatted and linted, and TypeScript edits are typechecked. At the end of a turn that edited files, `npm run check` runs and failures come back to you.
 - Try UI changes with `npm run dev -- --demo`. It uses fake data, makes no GitHub calls, and opens no links.
