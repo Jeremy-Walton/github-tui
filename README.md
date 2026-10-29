@@ -53,21 +53,13 @@ gh auth login
 
 Pick **GitHub.com**, then follow the prompts. If `gh auth status` already shows you as logged in, skip this step.
 
-### 3. Clone and install
+### 3. Install github-tui
 
 ```bash
-git clone https://github.com/Jeremy-Walton/github-tui.git
-cd github-tui
-bin/install
+npm install -g @jeremywalton/github-tui
 ```
 
-`bin/install` installs dependencies, builds the app, and links a `github` command into `~/.local/bin`. With nodenv, the command runs on your global Node version, so it works in any project folder.
-
-If it prints a line to add to your shell profile, add it to `~/.zshrc` (or `~/.bashrc`), then open a new terminal:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
+With nodenv, nvm, or asdf, global npm packages belong to one Node version. Run the install from your home folder (`cd ~` first) so it goes into your default version. A project folder that pins a different Node version won't find the `github` command.
 
 ### 4. Run it
 
@@ -75,28 +67,45 @@ export PATH="$HOME/.local/bin:$PATH"
 github
 ```
 
+### From source
+
+To run your own checkout instead:
+
+```bash
+git clone https://github.com/Jeremy-Walton/github-tui.git
+cd github-tui
+bin/install
+```
+
+`bin/install` installs dependencies, builds the app, and links a `github` command into `~/.local/bin`. With nodenv, that command always runs on your global Node version, so it works in any project folder. If it prints a line to add to your shell profile, add it to `~/.zshrc` (or `~/.bashrc`), then open a new terminal:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
 ## Update
 
 ```bash
-cd github-tui
-git pull
-bin/install
+npm install -g @jeremywalton/github-tui
 ```
+
+From source: `git pull`, then `bin/install`.
 
 ## Uninstall
 
 ```bash
-rm ~/.local/bin/github
+npm uninstall -g @jeremywalton/github-tui
 rm -r ~/.cache/github-tui ~/.config/github-tui
 ```
 
-Then delete the cloned `github-tui` folder.
+From source: `rm ~/.local/bin/github`, then delete the cloned folder.
 
 ## Troubleshooting
 
 | Message | Fix |
 | --- | --- |
-| `github: command not found` | `~/.local/bin` is not on your PATH. See step 3. |
+| `github: command not found` | Installed with npm: your current folder uses a different Node version than the one you installed into. See step 3. From source: `~/.local/bin` is not on your PATH. |
+| `github` opens GitHub Desktop | GitHub Desktop's command line tool is also named `github`. Put npm's bin folder (`npm prefix -g`/bin) or `~/.local/bin` earlier in your PATH. |
 | `The GitHub CLI is not installed` | Install `gh` (step 1). |
 | `Not logged in to GitHub` | Run `gh auth login` (step 2). |
 | `github-tui needs Node 22 or newer` | Upgrade Node, or set a newer default in your version manager. |
@@ -134,6 +143,22 @@ npm run dev
 | `npm run lint` | Biome lint and format check |
 | `npm run format` | Biome safe fixes and formatting |
 | `npm test` | Vitest: unit tests, the GitHub client with stubbed responses, and the app rendered on demo data |
+
+### Releasing
+
+Pushing a `v*` tag publishes to npm through `.github/workflows/release.yml`. It runs `npm run check`, stops if the tag doesn't match the `package.json` version, then runs `npm publish --provenance`. It needs no npm token, because npm trusts the workflow (trusted publishing).
+
+```bash
+npm version patch   # or minor / major: bumps package.json, commits, and tags
+git push --follow-tags
+```
+
+The first version must be published by hand, because trusted publishing is set up on a package that already exists:
+
+1. `npm login`, then `npm publish` from a clean checkout of `main`.
+2. On npmjs.com, open the package's settings and add a trusted publisher: GitHub Actions, repository `Jeremy-Walton/github-tui`, workflow `release.yml`.
+
+### Screenshots
 
 `npm run screenshots` builds the app and remakes the images in `docs/screenshots/` from demo mode. It needs `python3` and Google Chrome. Set `CHROME_PATH` if Chrome is somewhere else.
 

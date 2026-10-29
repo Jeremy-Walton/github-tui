@@ -1,10 +1,38 @@
 {
-	"name": "github-tui",
+	"name": "@jeremywalton/github-tui",
 	"version": "0.1.0",
-	"private": true,
+	"description": "A terminal UI for GitHub: your pull requests, repositories, and notifications inbox",
+	"keywords": [
+		"github",
+		"pull-request",
+		"notifications",
+		"cli",
+		"tui",
+		"ink",
+		"terminal"
+	],
+	"license": "MIT",
+	"author": "Jeremy Walton",
+	"homepage": "https://github.com/Jeremy-Walton/github-tui#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Jeremy-Walton/github-tui.git"
+	},
+	"bugs": "https://github.com/Jeremy-Walton/github-tui/issues",
 	"type": "module",
 	"bin": {
-		"github": "./dist/cli.js"
+		"github": "dist/cli.js"
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"engines": {
+		"node": ">=22"
 	},
 	"scripts": {
 		"check-secrets": "! git grep --untracked -nIE 'gh[pousr]_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{22,}' || (echo 'Possible GitHub token found above. Remove it.' && false)",
@@ -17,10 +45,8 @@
 		"build": "tsc",
 		"prepare": "npm run build",
 		"dev": "npm run build && node dist/cli.js",
-		"screenshots": "node scripts/screenshots.mjs"
-	},
-	"engines": {
-		"node": ">=22"
+		"screenshots": "node scripts/screenshots.mjs",
+		"prepack": "node -e \"require('node:fs').rmSync('dist', {recursive: true, force: true})\" && npm run build"
 	},
 	"dependencies": {
 		"ink": "^7.1.1",

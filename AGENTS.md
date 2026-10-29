@@ -27,7 +27,7 @@ Install, keys, and the dev commands are in @README.md. Read it first.
 ## Product decisions (keep these unless the user changes them)
 
 - **Auth:** always the `gh` keychain login (`gh auth token --hostname github.com`). `GITHUB_TOKEN` and `GH_TOKEN` are removed from the environment on purpose. Secrets never go in the code or the settings file; anyone with `gh` logged in can use the app.
-- **Launch:** `bin/github` is linked into `~/.local/bin`. It runs on the global nodenv version when nodenv exists, because a project's `.node-version` once hid the command.
+- **Launch:** published to npm as `@jeremywalton/github-tui` (command `github`); a `v*` tag publishes through `.github/workflows/release.yml`. From source, `bin/github` is linked into `~/.local/bin`. It runs on the global nodenv version when nodenv exists, because a project's `.node-version` once hid the command.
 - **Startup:** the top sidebar page (Pull Requests by default) opens and loads first. The other pages wait for its first fetch. Settings always stays at the bottom of the sidebar. Cached data in `~/.cache/github-tui` shows right away on every page.
 - **Pull Requests:** sections in this order: Assigned to you, Review requested, Your pull requests, then one group per watched repo (newest PR first). Each PR shows once. Bot PRs (Dependabot and Renovate only, not the Copilot agent) are hidden unless Settings turns them on. Settings can also hide the watched-repo groups.
 - **Open in slice:** off by default. When on, Enter on a PR asks: slice or GitHub. slice gets the PR URL and runs diff-only (no `--ai`) from an empty git repo in the cache, because slice needs a git folder but reads a PR URL's diff from GitHub. The app gives slice the terminal with Ink's `suspendTerminal`.

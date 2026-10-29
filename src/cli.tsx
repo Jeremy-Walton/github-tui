@@ -5,4 +5,9 @@ if (major < 22) {
 	console.error(`github-tui needs Node 22 or newer. You have ${process.versions.node}.`);
 	process.exit(1);
 }
+if (process.argv.includes('--version')) {
+	const {packageVersion} = await import('./version.js');
+	console.log(packageVersion());
+	process.exit(0);
+}
 await import('./main.js');

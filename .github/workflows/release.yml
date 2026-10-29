@@ -1,0 +1,35 @@
+name: Release
+
+# Pushing a v* tag publishes that commit, so what ships always exists in history.
+# There is no npm token: npm trusts this workflow through trusted publishing, which
+# needs `id-token: write`. That also adds a provenance attestation to the package.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+
+      # npm never lets a version be reused, so a tag that disagrees with package.json can't be fixed afterward.
+      - name: The tag matches package.json
+        run: |
+          packaged="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME#v}" != "$packaged" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $packaged" >&2
+            exit 1
+          fi
+
+      - run: npm publish --provenance

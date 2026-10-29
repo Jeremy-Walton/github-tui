@@ -32,3 +32,17 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm test
+
+  # Installs the tarball npm would publish, so a broken bin path or a missing file fails here, not for users.
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm pack
+      - run: npm install -g ./jeremywalton-github-tui-*.tgz
+      - run: test "$(github --version)" = "$(node -p "require('./package.json').version")"
