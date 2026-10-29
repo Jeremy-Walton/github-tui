@@ -93,8 +93,8 @@ describe('App (demo data)', () => {
 		expect(frame).toContain('demo data');
 		expect(frame).toMatch(/Show bot pull requests +off/);
 		expect(frame).toMatch(/✓ Show watched repos +on/);
+		expect(frame).toMatch(/Ask to open in slice +off/);
 		expect(frame).toContain('Sidebar order');
-		expect(frame).toContain('Terminal');
 		expect(frame.split('\n').length).toBeLessThanOrEqual(ROWS);
 
 		await app.press('/', 'l', 'u', 'm', 'o', 'n');
@@ -102,7 +102,7 @@ describe('App (demo data)', () => {
 	});
 
 	it('switches theme with enter', async () => {
-		await app.press('4', ...down(7), '\r');
+		await app.press('4', ...down(8), '\r');
 		expect(app.frame()).toContain('Theme: Cobalt2');
 		expect(app.frame()).toMatch(/▌✓ Cobalt2 +current/);
 
@@ -130,7 +130,7 @@ describe('App (demo data)', () => {
 	});
 
 	it('moves sidebar pages with J and K and keeps the cursor on the moved page', async () => {
-		await app.press('4', ...down(5), 'K', 'K');
+		await app.press('4', ...down(6), 'K', 'K');
 		expect(app.frame()).toMatch(/▌1 +Inbox/);
 
 		await app.press('1');
@@ -138,8 +138,20 @@ describe('App (demo data)', () => {
 		await app.press('2');
 		expect(app.frame()).toMatch(/› Pull Requests +11 /);
 
-		await app.press('4', ...down(4), 'J');
+		await app.press('4', ...down(5), 'J');
 		expect(app.frame()).toMatch(/▌3 +Pull Requests/);
+	});
+
+	it('turns on asking to open pull requests in slice', async () => {
+		await app.press('4', ...down(3));
+		expect(app.frame()).toMatch(/Ask to open in slice +off/);
+		expect(app.frame()).toContain('https://github.com/gavinomelia/slice');
+
+		await app.press('\r');
+		expect(app.frame()).toContain('Enter on a pull request: asks GitHub or slice');
+
+		await app.press('1', '\r');
+		expect(app.frame()).toContain('Open acme/storefront #482');
 	});
 
 	it('moves focus to the sidebar and switches pages with arrows', async () => {
@@ -158,6 +170,53 @@ describe('App with a saved sidebar order', () => {
 		const {app} = await start({...DEFAULT_SETTINGS, sidebar: ['inbox', 'pull-requests', 'repositories']});
 		expect(app.frame()).toMatch(/› Inbox +14 /);
 		app.unmount();
+	});
+});
+
+describe('App asking how to open a pull request', () => {
+	let app: ReturnType<typeof renderApp>;
+
+	beforeEach(async () => {
+		({app} = await start({...DEFAULT_SETTINGS, askToOpenInSlice: true}));
+		await app.press('\r');
+	});
+
+	afterEach(() => {
+		app.unmount();
+		runtime.demo = false;
+	});
+
+	it('shows the choices for the selected pull request', () => {
+		const frame = app.frame();
+		expect(frame).toContain('Open acme/storefront #482');
+		expect(frame).toMatch(/s +slice +Review the diff in the terminal/);
+		expect(frame).toMatch(/g +GitHub +Open in the browser/);
+		expect(frame).toContain('esc cancel');
+		expect(frame.split('\n').length).toBeLessThanOrEqual(ROWS);
+	});
+
+	it('closes on escape', async () => {
+		await app.press(keys.escape);
+		expect(app.frame()).not.toContain('Open acme/storefront #482');
+	});
+
+	it('keeps page and quit keys out of the list while open', async () => {
+		await app.press('2', 'j');
+		expect(app.frame()).toContain('› Pull Requests');
+		expect(app.frame()).toMatch(/▌.*Add Apple Pay to checkout/);
+		expect(app.frame()).toContain('Open acme/storefront #482');
+	});
+
+	it('picks a choice by its key', async () => {
+		await app.press('s');
+		expect(app.frame()).not.toContain('Open acme/storefront #482');
+		expect(app.frame()).toContain("slice doesn't run in demo mode");
+	});
+
+	it('picks the highlighted choice with enter', async () => {
+		await app.press('j', '\r');
+		expect(app.frame()).not.toContain('Open acme/storefront #482');
+		expect(app.frame()).not.toContain('demo mode');
 	});
 });
 

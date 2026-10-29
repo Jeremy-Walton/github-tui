@@ -2,6 +2,7 @@ import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
 import {Fragment, type ReactNode, useEffect, useMemo, useState} from 'react';
 import type {ActionQueue} from './actions.js';
 import type {GitHubClient, Viewer} from './github.js';
+import {PROMPT_HINTS, type Prompt, PromptBox, promptHeight} from './Prompt.js';
 import {INBOX_HINTS, InboxPage} from './pages/Inbox.js';
 import {PullRequestsPage, visiblePullRequests} from './pages/PullRequests.js';
 import {ReposPage} from './pages/Repos.js';
@@ -39,6 +40,7 @@ export function App({gh, viewer, actions, settings: initialSettings = DEFAULT_SE
 	const [focus, setFocus] = useState<Focus>('main');
 	const [searches, setSearches] = useState<Partial<Record<Page['id'], Search>>>({});
 	const [message, setMessage] = useState('');
+	const [prompt, setPrompt] = useState<{prompt: Prompt; selected: number} | null>(null);
 	const [settings, setSettings] = useState(initialSettings);
 	const theme = findTheme(settings.theme);
 
@@ -63,7 +65,9 @@ export function App({gh, viewer, actions, settings: initialSettings = DEFAULT_SE
 			name: PAGE_NAMES['pull-requests'],
 			resource: prs,
 			count: prs.data ? shownPRs.length : undefined,
-			render: p => <PullRequestsPage resource={prs} items={shownPRs} {...p} />,
+			render: p => (
+				<PullRequestsPage resource={prs} items={shownPRs} askToOpenInSlice={settings.askToOpenInSlice} {...p} />
+			),
 		},
 		repositories: {
 			id: 'repositories',
@@ -109,6 +113,20 @@ export function App({gh, viewer, actions, settings: initialSettings = DEFAULT_SE
 	const setSearch = (patch: Partial<Search>) => setSearches(all => ({...all, [current.id]: {...search, ...patch}}));
 
 	useInput((input, key) => {
+		if (prompt) {
+			const {choices} = prompt.prompt;
+			if (key.escape) return setPrompt(null);
+			if (key.upArrow || input === 'k') return setPrompt({...prompt, selected: Math.max(0, prompt.selected - 1)});
+			if (key.downArrow || input === 'j') {
+				return setPrompt({...prompt, selected: Math.min(choices.length - 1, prompt.selected + 1)});
+			}
+			const choice = key.return ? choices[prompt.selected] : choices.find(c => c.key === input);
+			if (choice) {
+				setPrompt(null);
+				choice.run();
+			}
+			return;
+		}
 		if (search.searching) {
 			if (key.escape || key.tab) return setSearch({searching: false});
 			if (key.backspace || key.delete) return setSearch({query: search.query.slice(0, -1)});
@@ -143,14 +161,15 @@ export function App({gh, viewer, actions, settings: initialSettings = DEFAULT_SE
 		}
 	});
 
-	const bodyHeight = rows - 2;
+	const bodyHeight = rows - 2 - (prompt ? promptHeight(prompt.prompt) : 0);
 	const mainHeight = bodyHeight - 2;
 	const pageProps: PageProps = {
 		height: mainHeight,
 		query: search.query,
 		searching: search.searching,
-		active: focus === 'main',
+		active: focus === 'main' && !prompt,
 		onMessage: setMessage,
+		onPrompt: next => setPrompt({prompt: next, selected: 0}),
 	};
 
 	return (
@@ -197,13 +216,16 @@ export function App({gh, viewer, actions, settings: initialSettings = DEFAULT_SE
 						{current.render(pageProps)}
 					</Box>
 				</Box>
+				{prompt ? <PromptBox prompt={prompt.prompt} selected={prompt.selected} /> : null}
 				<Box paddingX={1}>
 					{message ? (
 						<Text color={theme.warning} wrap="truncate-end">
 							{message}
 						</Text>
 					) : (
-						<Muted wrap="truncate-end">{hints(current, pages.length, focus, search.searching)}</Muted>
+						<Muted wrap="truncate-end">
+							{prompt ? PROMPT_HINTS : hints(current, pages.length, focus, search.searching)}
+						</Muted>
 					)}
 				</Box>
 			</Box>

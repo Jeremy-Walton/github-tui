@@ -34,7 +34,7 @@ export function matches(text: string, query: string): boolean {
 		.every(word => hay.includes(word));
 }
 
-const CACHE_DIR = join(process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache'), 'github-tui');
+export const CACHE_DIR = join(process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache'), 'github-tui');
 
 async function readCache<T>(key: string): Promise<T | null> {
 	if (runtime.demo) return null;

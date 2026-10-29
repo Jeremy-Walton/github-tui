@@ -4,11 +4,15 @@ import {promisify} from 'node:util';
 const exec = promisify(execFile);
 const API = 'https://api.github.com';
 
+// Strip token env vars so gh uses the keyring login, not a token a project's env happens to set.
+export function ghEnv(): NodeJS.ProcessEnv {
+	const {GITHUB_TOKEN, GH_TOKEN, ...env} = process.env;
+	return env;
+}
+
 export async function getToken(): Promise<string> {
 	try {
-		// Strip token env vars so gh returns the keyring login, not a token a project's env happens to set.
-		const {GITHUB_TOKEN, GH_TOKEN, ...env} = process.env;
-		const {stdout} = await exec('gh', ['auth', 'token', '--hostname', 'github.com'], {env});
+		const {stdout} = await exec('gh', ['auth', 'token', '--hostname', 'github.com'], {env: ghEnv()});
 		return stdout.trim();
 	} catch (e) {
 		if ((e as NodeJS.ErrnoException).code === 'ENOENT') {

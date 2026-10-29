@@ -16,9 +16,11 @@ The app uses your `gh` login and never stores a token: it asks `gh auth token` e
 
 ![Repositories page with a search](docs/screenshots/repositories.png)
 
-**Settings** shows who you're signed in as and lets you pick a color theme: Terminal (your terminal's own colors), Cobalt2, Dracula, Nord, Solarized Dark, Gruvbox Dark, Tokyo Night, Lumon, or GitHub Light. It also lets you show bot pull requests (Dependabot and Renovate, hidden by default), hide the watched-repo groups on the Pull requests page, and reorder the sidebar with `shift+j` and `shift+k`. The top sidebar page opens first. Your choices are saved to `~/.config/github-tui/settings.json` (or `$XDG_CONFIG_HOME/github-tui`). Themes look best in a terminal with 24-bit color.
+**Settings** shows who you're signed in as and lets you pick a color theme: Terminal (your terminal's own colors), Cobalt2, Dracula, Nord, Solarized Dark, Gruvbox Dark, Tokyo Night, Lumon, or GitHub Light. It also lets you show bot pull requests (Dependabot and Renovate, hidden by default), hide the watched-repo groups on the Pull requests page, ask how to open a pull request (see below), and reorder the sidebar with `shift+j` and `shift+k`. The top sidebar page opens first. Your choices are saved to `~/.config/github-tui/settings.json` (or `$XDG_CONFIG_HOME/github-tui`). Themes look best in a terminal with 24-bit color.
 
 ![Settings page with the theme list](docs/screenshots/settings.png)
+
+**Open in slice.** Turn on "Ask to open in slice" in Settings. Then `enter` on a pull request asks where to open it: `s` reviews the diff in the terminal with [slice](https://github.com/gavinomelia/slice), and `g` opens GitHub. Install slice with `npm install -g @gavinomelia/slice`. The app runs `slice <PR URL>` from an empty git folder in `~/.cache/github-tui/slice`, so you don't need a local clone. Quit slice with `q` to come back. slice's AI review (`--ai`) isn't offered, because it needs a clone of the repo.
 
 > Screenshots use made-up data. Run `github --demo` to try the UI without touching your account.
 
@@ -105,7 +107,7 @@ Then delete the cloned `github-tui` folder.
 | Key | Action |
 | --- | --- |
 | `↑` `↓` / `j` `k` | Move |
-| `enter` | Open in browser (Settings: use the selected theme or switch the selected option) |
+| `enter` | Open in browser, or ask GitHub or slice for a pull request when that setting is on (Settings: use the selected theme or switch the selected option) |
 | `/` | Focus search (`esc` to leave, `esc` again to clear) |
 | `←` / `h`, `tab` | Focus sidebar |
 | `1` `2` `3` `4` | Jump to a page, in sidebar order |

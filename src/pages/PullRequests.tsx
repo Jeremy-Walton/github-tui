@@ -1,15 +1,38 @@
-import {Text} from 'ink';
+import {Text, useApp} from 'ink';
 import type {PullRequest} from '../github.js';
 import {Cell, Line, ListView, Title} from '../ListView.js';
 import type {Settings} from '../settings.js';
+import {runSlice} from '../slice.js';
 import {Muted, useTheme} from '../theme.js';
-import {openUrl, type Resource, timeAgo} from '../util.js';
+import {openUrl, type Resource, runtime, timeAgo} from '../util.js';
 import type {PageProps} from './types.js';
 
-type Props = PageProps & {resource: Resource<PullRequest[]>; items: PullRequest[]};
+type Props = PageProps & {resource: Resource<PullRequest[]>; items: PullRequest[]; askToOpenInSlice: boolean};
 
-export function PullRequestsPage({resource, items, ...props}: Props) {
+export function PullRequestsPage({resource, items, askToOpenInSlice, ...props}: Props) {
 	const t = useTheme();
+	const {suspendTerminal} = useApp();
+
+	const openInSlice = async (pr: PullRequest) => {
+		if (runtime.demo) return props.onMessage("slice doesn't run in demo mode");
+		let error: string | null = null;
+		await suspendTerminal(async () => {
+			error = await runSlice(pr.url);
+		});
+		if (error) props.onMessage(error);
+	};
+
+	const open = (pr: PullRequest) => {
+		if (!askToOpenInSlice) return openUrl(pr.url);
+		props.onPrompt({
+			title: `Open ${pr.repo} #${pr.number}`,
+			choices: [
+				{key: 's', label: 'slice', detail: 'Review the diff in the terminal', run: () => void openInSlice(pr)},
+				{key: 'g', label: 'GitHub', detail: 'Open in the browser', run: () => openUrl(pr.url)},
+			],
+		});
+	};
+
 	return (
 		<ListView
 			{...props}
@@ -19,7 +42,7 @@ export function PullRequestsPage({resource, items, ...props}: Props) {
 			getKey={pr => pr.id}
 			getGroup={bySection}
 			getSearchText={prSearchText}
-			onOpen={pr => openUrl(pr.url)}
+			onOpen={open}
 			renderItem={(pr, selected) => (
 				<>
 					<Line selected={selected}>

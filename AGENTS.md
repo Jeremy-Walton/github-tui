@@ -18,6 +18,8 @@ Install, keys, and the dev commands are in @README.md. Read it first.
 - `src/ListView.tsx`: the shared list. It has the search box, grouping, scrolling, and selection, plus the `Line`, `Cell`, and `Title` row helpers.
 - `src/pages/*`: one file per page. A page renders rows and handles its own keys.
 - `src/actions.ts`: the delayed-send undo queue for inbox actions.
+- `src/Prompt.tsx`: the choice box a page opens with `onPrompt`. `App` owns its keys while it is open.
+- `src/slice.ts`: runs [slice](https://github.com/gavinomelia/slice) on a PR URL.
 - `src/theme.tsx`: the color themes and `useTheme`. Components take colors from the theme, not color names.
 - `src/settings.ts`: reads and writes the settings file.
 - `src/util.ts`: the cached data hook (`useResource`), the time and search helpers, and the `runtime.demo` flag.
@@ -28,6 +30,7 @@ Install, keys, and the dev commands are in @README.md. Read it first.
 - **Launch:** `bin/github` is linked into `~/.local/bin`. It runs on the global nodenv version when nodenv exists, because a project's `.node-version` once hid the command.
 - **Startup:** the top sidebar page (Pull Requests by default) opens and loads first. The other pages wait for its first fetch. Settings always stays at the bottom of the sidebar. Cached data in `~/.cache/github-tui` shows right away on every page.
 - **Pull Requests:** sections in this order: Assigned to you, Review requested, Your pull requests, then one group per watched repo (newest PR first). Each PR shows once. Bot PRs (Dependabot and Renovate only, not the Copilot agent) are hidden unless Settings turns them on. Settings can also hide the watched-repo groups.
+- **Open in slice:** off by default. When on, Enter on a PR asks: slice or GitHub. slice gets the PR URL and runs diff-only (no `--ai`) from an empty git repo in the cache, because slice needs a git folder but reads a PR URL's diff from GitHub. The app gives slice the terminal with Ink's `suspendTerminal`.
 - **Repositories:** sorted by the user's own activity (their event feed: the last 300 events or 90 days), then by push time.
 - **Inbox:** shows unread github.com notifications only (no `all=true`). An item you open stays on the list, dimmed, until the next fetch. It shows each PR or issue's open, merged, closed, or draft state through a separate GraphQL lookup. Keys: `e` done, `t` unsubscribe (also marks done), `u` undo, Enter opens the item and marks it read.
 - **Undo:** GitHub can't un-mark a notification as done, so actions wait 15 seconds in `ActionQueue` before they're sent. Pending actions are sent on quit, SIGHUP, and SIGTERM.

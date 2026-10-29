@@ -9,6 +9,7 @@ export type Settings = {
 	theme: string;
 	showBotPullRequests: boolean;
 	showWatchedRepos: boolean;
+	askToOpenInSlice: boolean;
 	// Settings itself always sits at the bottom of the sidebar, so it isn't listed.
 	sidebar: PageId[];
 };
@@ -17,6 +18,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	theme: 'default',
 	showBotPullRequests: false,
 	showWatchedRepos: true,
+	askToOpenInSlice: false,
 	sidebar: ['pull-requests', 'repositories', 'inbox'],
 };
 

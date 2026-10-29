@@ -3,6 +3,7 @@ import {useMemo} from 'react';
 import type {Viewer} from '../github.js';
 import {Cell, Line, ListView, Title} from '../ListView.js';
 import {movePage, type PageId, SETTINGS_FILE, type Settings} from '../settings.js';
+import {SLICE_URL} from '../slice.js';
 import {Muted, THEMES, type Theme, useTheme} from '../theme.js';
 import {openUrl, type Resource, runtime} from '../util.js';
 import {PAGE_NAMES, type PageProps} from './types.js';
@@ -20,15 +21,20 @@ type Props = PageProps & {viewer: Viewer; settings: Settings; onChange: (setting
 const TOGGLES = {
 	showBotPullRequests: {
 		name: 'Show bot pull requests',
-		message: 'Bot pull requests',
+		message: on => `Bot pull requests: ${on ? 'shown' : 'hidden'}`,
 		detail: 'Dependabot and Renovate',
 	},
 	showWatchedRepos: {
 		name: 'Show watched repos',
-		message: 'Watched repos',
+		message: on => `Watched repos: ${on ? 'shown' : 'hidden'}`,
 		detail: 'Open pull requests in repos you watch, grouped by repo',
 	},
-} satisfies Partial<Record<keyof Settings, {name: string; message: string; detail: string}>>;
+	askToOpenInSlice: {
+		name: 'Ask to open in slice',
+		message: on => `Enter on a pull request: ${on ? 'asks GitHub or slice' : 'opens GitHub'}`,
+		detail: `Enter asks: GitHub, or the diff in slice · ${SLICE_URL}`,
+	},
+} satisfies Partial<Record<keyof Settings, {name: string; message: (on: boolean) => string; detail: string}>>;
 
 type Toggle = keyof typeof TOGGLES;
 
@@ -161,7 +167,7 @@ export function SettingsPage({viewer, settings, onChange, ...props}: Props) {
 				if (item.kind === 'toggle') {
 					const on = !settings[item.toggle];
 					onChange({...settings, [item.toggle]: on});
-					return props.onMessage(`${TOGGLES[item.toggle].message}: ${on ? 'shown' : 'hidden'}${notSaved}`);
+					return props.onMessage(`${TOGGLES[item.toggle].message(on)}${notSaved}`);
 				}
 				onChange({...settings, theme: item.theme.id});
 				props.onMessage(`Theme: ${item.theme.name}${notSaved}`);

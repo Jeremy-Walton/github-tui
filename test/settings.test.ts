@@ -24,6 +24,7 @@ describe('settings file', () => {
 			theme: 'default',
 			showBotPullRequests: false,
 			showWatchedRepos: true,
+			askToOpenInSlice: false,
 			sidebar: ['pull-requests', 'repositories', 'inbox'],
 		});
 	});
