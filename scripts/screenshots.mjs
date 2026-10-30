@@ -18,6 +18,7 @@ const SHOTS = [
 	{name: 'inbox', keys: ['3', 'j', 'j']},
 	{name: 'repositories', keys: ['2', '/', 'a', 'c', 'm', 'e']},
 	{name: 'settings', keys: ['4', 'j', 'j']},
+	{name: 'help', keys: ['?']},
 ];
 
 // Tokyo Night terminal colors.
