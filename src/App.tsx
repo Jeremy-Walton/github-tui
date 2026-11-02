@@ -2,6 +2,7 @@ import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
 import {Fragment, type ReactNode, useEffect, useMemo, useState} from 'react';
 import type {ActionQueue} from './actions.js';
 import type {GitHubClient, Viewer} from './github.js';
+import {HELP_HINTS, HelpPanel} from './Help.js';
 import {PROMPT_HINTS, type Prompt, PromptBox, promptHeight} from './Prompt.js';
 import {INBOX_HINTS, InboxPage} from './pages/Inbox.js';
 import {PullRequestsPage, visiblePullRequests} from './pages/PullRequests.js';
@@ -41,6 +42,7 @@ export function App({gh, viewer, actions, settings: initialSettings = DEFAULT_SE
 	const [searches, setSearches] = useState<Partial<Record<Page['id'], Search>>>({});
 	const [message, setMessage] = useState('');
 	const [prompt, setPrompt] = useState<{prompt: Prompt; selected: number} | null>(null);
+	const [help, setHelp] = useState(false);
 	const [settings, setSettings] = useState(initialSettings);
 	const theme = findTheme(settings.theme);
 
@@ -136,8 +138,14 @@ export function App({gh, viewer, actions, settings: initialSettings = DEFAULT_SE
 			}
 			return;
 		}
+		if (help) {
+			if (key.escape || input === '?') return setHelp(false);
+			if (input === 'q') return exit();
+			return;
+		}
 
 		if (input === 'q') return exit();
+		if (input === '?') return setHelp(true);
 		if (input === '/') {
 			setFocus('main');
 			return setSearch({searching: true});
@@ -167,7 +175,7 @@ export function App({gh, viewer, actions, settings: initialSettings = DEFAULT_SE
 		height: mainHeight,
 		query: search.query,
 		searching: search.searching,
-		active: focus === 'main' && !prompt,
+		active: focus === 'main' && !prompt && !help,
 		onMessage: setMessage,
 		onPrompt: next => setPrompt({prompt: next, selected: 0}),
 	};
@@ -213,7 +221,10 @@ export function App({gh, viewer, actions, settings: initialSettings = DEFAULT_SE
 						))}
 					</Box>
 					<Box flexDirection="column" flexGrow={1} borderStyle="round" {...borderProps(theme, focus === 'main')}>
-						{current.render(pageProps)}
+						{help ? <HelpPanel height={mainHeight} pageCount={pages.length} /> : null}
+						<Box display={help ? 'none' : 'flex'} flexDirection="column">
+							{current.render(pageProps)}
+						</Box>
 					</Box>
 				</Box>
 				{prompt ? <PromptBox prompt={prompt.prompt} selected={prompt.selected} /> : null}
@@ -224,7 +235,7 @@ export function App({gh, viewer, actions, settings: initialSettings = DEFAULT_SE
 						</Text>
 					) : (
 						<Muted wrap="truncate-end">
-							{prompt ? PROMPT_HINTS : hints(current, pages.length, focus, search.searching)}
+							{prompt ? PROMPT_HINTS : help ? HELP_HINTS : hints(current, pages.length, focus, search.searching)}
 						</Muted>
 					)}
 				</Box>
@@ -266,7 +277,7 @@ function SidebarItem({
 function hints(page: Page, pageCount: number, focus: Focus, searching: boolean): string {
 	if (searching) return 'type to filter · ↑↓ move · enter open · esc done · ctrl+u clear';
 	const jump = `1-${pageCount} jump`;
-	if (focus === 'sidebar') return `↑↓ switch page · → / enter go to list · / search · ${jump} · q quit`;
-	const base = `↑↓ move · enter open · / search · ← sidebar · ${jump} · r refresh · q quit`;
+	if (focus === 'sidebar') return `↑↓ switch page · → / enter go to list · / search · ${jump} · ? help · q quit`;
+	const base = `↑↓ move · enter open · / search · ← sidebar · ${jump} · r refresh · ? help · q quit`;
 	return page.hints ? `${page.hints} · ${base}` : base;
 }

@@ -154,6 +154,41 @@ describe('App (demo data)', () => {
 		expect(app.frame()).toContain('Open acme/storefront #482');
 	});
 
+	it('shows ? help in the key hints', () => {
+		expect(app.frame()).toContain('? help');
+	});
+
+	it('lists every keyboard shortcut on ?', async () => {
+		await app.press('?');
+		const frame = app.frame();
+		expect(frame).toContain('Keyboard shortcuts');
+		expect(frame).toMatch(/g +home +Top of the list/);
+		expect(frame).toMatch(/pgup +pgdn +Up or down a page/);
+		expect(frame).toMatch(/e +Mark done/);
+		expect(frame).toMatch(/shift\+j +shift\+k +Move the sidebar page/);
+		expect(frame).toContain('esc close');
+		expect(frame).not.toContain('Add Apple Pay to checkout');
+		expect(frame.split('\n').length).toBeLessThanOrEqual(ROWS);
+	});
+
+	it('closes help on escape or ? and keeps the selection', async () => {
+		await app.press('j', '?', 'j', 'j');
+		expect(app.frame()).toContain('Keyboard shortcuts');
+
+		await app.press(keys.escape);
+		expect(app.frame()).not.toContain('Keyboard shortcuts');
+		expect(app.frame()).toMatch(/▌.*Rate limit webhook retries/);
+
+		await app.press('?', '?');
+		expect(app.frame()).not.toContain('Keyboard shortcuts');
+	});
+
+	it('types ? into the search box instead of opening help', async () => {
+		await app.press('/', '?');
+		expect(app.frame()).toContain('/ ?');
+		expect(app.frame()).not.toContain('Keyboard shortcuts');
+	});
+
 	it('moves focus to the sidebar and switches pages with arrows', async () => {
 		await app.press(keys.left, keys.down);
 		expect(app.frame()).toContain('› Repositories');

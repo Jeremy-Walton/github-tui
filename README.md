@@ -22,6 +22,10 @@ The app uses your `gh` login and never stores a token: it asks `gh auth token` e
 
 **Open in slice.** Turn on "Ask to open in slice" in Settings. Then `enter` on a pull request asks where to open it: `s` reviews the diff in the terminal with [slice](https://github.com/gavinomelia/slice), and `g` opens GitHub. Install slice with `npm install -g @gavinomelia/slice`. The app runs `slice <PR URL>` from an empty git folder in `~/.cache/github-tui/slice`, so you don't need a local clone. Quit slice with `q` to come back. slice's AI review (`--ai`) isn't offered, because it needs a clone of the repo.
 
+**Keyboard shortcuts.** Press `?` on any page to see every key. Press `esc` or `?` again to close it.
+
+![Keyboard shortcuts help](docs/screenshots/help.png)
+
 > Screenshots use made-up data. Run `github --demo` to try the UI without touching your account.
 
 ## Install
@@ -115,7 +119,10 @@ From source: `rm ~/.local/bin/github`, then delete the cloned folder.
 
 | Key | Action |
 | --- | --- |
+| `?` | Show or hide the keyboard shortcuts |
 | `↑` `↓` / `j` `k` | Move |
+| `g` / `home`, `G` / `end` | Top or bottom of the list |
+| `pgup` `pgdn` | Up or down a page |
 | `enter` | Open in browser, or ask GitHub or slice for a pull request when that setting is on (Settings: use the selected theme or switch the selected option) |
 | `/` | Focus search (`esc` to leave, `esc` again to clear) |
 | `←` / `h`, `tab` | Focus sidebar |
